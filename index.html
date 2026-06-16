@@ -133,7 +133,11 @@
       <div><b>Right click</b> — ⚡ lightning (1-hit kill)</div><div><b>Wave 5 / 10…</b> — boss spawns</div>
       <div><b>❤️ life · 🛡️ armor · ✖️2X</b> — pickups</div><div><b>Force Push</b> — open hand to blast</div>
     </div>
-    <button id="startBtn">ENTER NEON CITY</button>
+    <div style="display:flex;gap:12px;justify-content:center;align-items:center;margin-top:14px;flex-wrap:wrap;">
+      <button id="startBtn">ENTER NEON CITY</button>
+      <button id="endlessBtn" onclick="window._endless=true;document.getElementById('startBtn').click()" style="background:linear-gradient(90deg,var(--mag),#ff6ab8);box-shadow:0 10px 34px rgba(255,45,149,.4);">♾ ENDLESS MODE</button>
+    </div>
+    <div style="margin-top:14px;"><a href="bestiary.html" target="_blank" style="font-family:'Orbitron';font-size:11px;letter-spacing:3px;color:var(--cyan);text-decoration:none;border:1px solid rgba(25,245,255,.3);border-radius:20px;padding:7px 18px;background:rgba(25,245,255,.06);">📖 GOLEM BESTIARY</a></div>
   </div>
 </div>
 <div id="gameover" class="overlay">
@@ -269,8 +273,8 @@
     day:  { bg:0x9fc4e8, fog:0x9fc4e8, fogD:0.0029, sun:0xfff4e0, sunI:2.0, hemiSky:0xbcd6ff, hemiGnd:0x4a4636, hemiI:1.05, amb:0x9fb0cc, ambI:0.55, star:0.0, neon:0.0, moon:0.0 },
     dusk: { bg:0x2a1a3e, fog:0x3a2147, fogD:0.0040, sun:0xff7a3c, sunI:1.15, hemiSky:0x5a4a78, hemiGnd:0x1a1426, hemiI:0.7, amb:0x4a3a6a, ambI:0.5, star:0.95, neon:0.6, moon:0.85 }
   };
-  const timeState={ phase:'day', t:0, locked:false }; // t: 0=day .. 1=dusk
-  const JAPAN_X=258; // entering Neo Tokyo / Japan district triggers the locked dusk shift
+  const timeState={ phase:'day', t:0, _warned:false }; // t: 0=day .. 1=dusk
+  const JAPAN_X=258; // entering Neo Tokyo / Japan district triggers dusk; leaving returns to day
   function lerpHex(a,b,t){const ar=(a>>16)&255,ag=(a>>8)&255,ab=a&255,br=(b>>16)&255,bg=(b>>8)&255,bb=b&255;return((ar+(br-ar)*t)|0)<<16|((ag+(bg-ag)*t)|0)<<8|((ab+(bb-ab)*t)|0);}
   function applyTimeOfDay(t){
     const d=SKY.day,k=SKY.dusk;
@@ -285,9 +289,10 @@
     const moonI=d.moon+(k.moon-d.moon)*t;if(scene.userData.moon)scene.userData.moon.material.emissiveIntensity=.15+moonI*.6;if(scene.userData.moonLight)scene.userData.moonLight.intensity=moonI;
   }
   function updateTimeOfDay(dt){
-    if(!timeState.locked && camera.position.x>=JAPAN_X){ timeState.phase='dusk'; timeState.locked=true; showBanner('NIGHTFALL','Entering Japan',2200); }
-    const target=timeState.phase==='dusk'?1:0;
-    if(timeState.t!==target){ timeState.t+=Math.sign(target-timeState.t)*dt*0.32; timeState.t=TL.clamp(timeState.t,0,1); applyTimeOfDay(timeState.t); }
+    const inJapan=camera.position.x>=JAPAN_X;
+    if(inJapan&&!timeState._warned){timeState._warned=true;showBanner('NIGHTFALL','Entering Japan',2200);}
+    const target=inJapan?1:0;
+    if(Math.abs(timeState.t-target)>0.001){timeState.t+=Math.sign(target-timeState.t)*dt*0.32;timeState.t=TL.clamp(timeState.t,0,1);applyTimeOfDay(timeState.t);}
   }
 
   /* ============================= SKY ============================= */
@@ -453,12 +458,47 @@
     cg.add(box(14,11,5,ice,0,8.4,-wsz));
     const gate=box(5.5,7,5.6,new THREE.MeshStandardMaterial({color:0x0a1c28,roughness:.6,emissive:0x0a3550,emissiveIntensity:.4}),0,6.4,-wsz);cg.add(gate);
     tower(-9,-wsz,3.4,16);tower(9,-wsz,3.4,16);
-    // central keep + grand spire
-    const keep=box(20,26,20,ice,0,16,0);cg.add(keep);addColl(keep);
-    cg.add(box(22,1.2,22,glow,0,29.2,0));
-    for(let a=0;a<14;a++){const an=a/14*Math.PI*2;cg.add(box(1.4,2,1.4,iceD,Math.cos(an)*10.5,30.2,Math.sin(an)*10.5));}
-    const keepRoof=new THREE.Mesh(new THREE.ConeGeometry(15,18,4),iceD);keepRoof.position.set(0,38,0);keepRoof.rotation.y=Math.PI/4;cg.add(keepRoof);
-    const spire=new THREE.Mesh(new THREE.ConeGeometry(3.4,16,12),ice);spire.position.set(0,50,0);cg.add(spire);
+    // ===== ENTERABLE KEEP — hollow walls, 2 interior floors, twin staircases =====
+    const KB=2.9,KH=22; // base Y, wall height
+    const f1=KB+9.1,f2=KB+17.1; // top of floor slabs (walking surfaces)
+    // four perimeter walls with door gap on south face (z=+9 local, toward the yard)
+    function kw(w,h,d,x,z){const m=box(w,h,d,ice,x,KB+h/2,z);cg.add(m);addColl(m);}
+    kw(20,KH,2,0,-9);            // north wall
+    kw(6.5,KH,2,-6.75,9);       // south-west
+    kw(6.5,KH,2,6.75,9);        // south-east  (door gap x=-3.5…+3.5, h=7)
+    cg.add(box(7,2,2,ice,0,KB+7.5,9));       // door lintel
+    kw(2,KH,16,9,0);             // east wall
+    kw(2,KH,16,-9,0);            // west wall
+    // interior floor slabs
+    [[f1],[f2]].forEach(([fy])=>{
+      cg.add(box(16,.6,16,iceD,0,fy+.3,0));
+      addWalk(cx,cz,16,16,fy+.6);
+      // four neon edge-strips so floors read clearly
+      [[8.2,0,16],[−8.2,0,16],[0,8.2,16],[0,-8.2,16]].forEach(([ex,ez,len])=>{
+        const horiz=ez===0;cg.add(box(horiz?len:.3,.15,horiz?.3:len,glow,ex,fy+.65,ez));});
+    });
+    // staircase helper: builds step boxes and addWalk entries
+    function mkStairs(lx,zFrom,zTo,yBase,yTop){
+      const n=Math.abs(Math.round(zTo-zFrom));const dz=(zTo-zFrom)/n,dy=(yTop-yBase)/n;
+      for(let i=0;i<n;i++){
+        const lz=zFrom+i*dz+dz/2,ly=yBase+i*dy;
+        cg.add(box(3,dy+.05,Math.abs(dz)*.96,iceD,lx,ly+dy/2,lz));
+        addWalk(cx+lx,cz+lz,3,Math.abs(dz)*.96,ly+dy);
+      }
+    }
+    // Stair 1 — NE corner, east side: ground → floor 1 (going north, z decreasing)
+    mkStairs(5.5,5.5,-5.5,KB,f1+.6);
+    // Stair 2 — SW corner, west side: floor 1 → floor 2 (going south, z increasing)
+    mkStairs(-5.5,-5.5,5.5,f1+.6,f2+.6);
+    // Stair 3 — NE, floor 2 → roof battlement walkway
+    mkStairs(5.5,5.5,-5.5,f2+.6,KB+KH+.5);
+    // Roof walkway (top of keep walls)
+    addWalk(cx,cz,16,16,KB+KH+.5);
+    // Battlement ring + spire (unchanged from original)
+    cg.add(box(22,1.2,22,glow,0,KB+KH+.6,0));
+    for(let a=0;a<14;a++){const an=a/14*Math.PI*2;cg.add(box(1.4,2,1.4,iceD,Math.cos(an)*10.5,KB+KH+1.6,Math.sin(an)*10.5));}
+    const keepRoof=new THREE.Mesh(new THREE.ConeGeometry(15,18,4),iceD);keepRoof.position.set(0,KB+KH+14,0);keepRoof.rotation.y=Math.PI/4;cg.add(keepRoof);
+    const spire=new THREE.Mesh(new THREE.ConeGeometry(3.4,16,12),ice);spire.position.set(0,KB+KH+26,0);cg.add(spire);
     cg.add(cyl(.22,.22,14,8,glow,0,50,0));
     // icy crystals scattered on the grounds
     for(let i=0;i<26;i++){const a=rand(0,Math.PI*2),rr=rand(20,46);const sx=Math.cos(a)*rr,sz=Math.sin(a)*rr;const cr=new THREE.Mesh(new THREE.ConeGeometry(rand(.6,1.6),rand(3,7),6),ice);cr.position.set(sx,2.9+1.5,sz);cr.rotation.set(rand(-.2,.2),rand(0,6),rand(-.2,.2));cg.add(cr);}
@@ -752,6 +792,9 @@
   function damageGolem(g,dmg){const u=g.userData;if(!u.alive)return;u.hp-=dmg;u.hitFlash=.12;if(u.isBoss)updateBossBar(g);if(u.hp<=0)killGolem(g);else showHit();}
   function killGolem(g){
     const u=g.userData;if(!u.alive)return;u.alive=false;
+    lastKillT=performance.now()/1000;waveStuckTimer=0;
+    // Endless mode: credit the island the golem is on (or last known)
+    if(state.endless){const ci=currentIsland();if(ci>=0){endlessKills[ci]++;if(endlessKills[ci]>=100){endlessKills[ci]=0;endlessWaveN[ci]++;addScore(5000);showBanner('ISLAND CLEAR','Wave '+endlessWaveN[ci]+' incoming',2400);}}}
     spawnBurst(g.position.clone().setY(2),u.def.col);addScore(u.def.score);state.kills++;showHit();
     if(rnd()<.24)dropPickup(g.position.x,g.position.z,'life');
     else if(rnd()<.34)dropPickup(g.position.x,g.position.z,'armor');
@@ -1140,8 +1183,14 @@
   }
 
   /* ============================= STATE / HUD ============================= */
-  const state={hp:100,maxHp:100,armor:100,maxArmor:100,score:0,kills:0,started:false,over:false,invuln:0,dmgMult:1,dmgMultTimer:0,god:false};
+  const state={hp:100,maxHp:100,armor:100,maxArmor:100,score:0,kills:0,started:false,over:false,invuln:0,dmgMult:1,dmgMultTimer:0,god:false,endless:false};
   let wave=0,spawnQueue=[],waveActive=false,interWaveTimer=0,spawnTimer=0;
+  let waveStuckTimer=0; // seconds since last kill when hostiles remain — triggers teleport
+  let lastKillT=0;
+  // Endless mode: per-island kill counters + island detection
+  const islandPolys=[null,null,null,null,null]; // filled after island polys defined
+  const endlessKills=[0,0,0,0,0],endlessWaveN=[1,1,1,1,1];
+  let endlessSpawnTimer=0;
 
   function addScore(n){state.score+=n;document.getElementById('scoreVal').textContent=state.score.toLocaleString();}
   function updateVitals(){
@@ -1172,6 +1221,10 @@
   // Endless: every wave is generated procedurally (no cap), boss every 5th, super-spider every 10th.
   // Spawns are spread across ALL islands/districts, not just a ring around the player.
   // Near islands only until wave 6; all 5 open after that so the world feels alive
+  // fill endless island poly refs now that all island polys exist
+  [isl0,isl1,isl2,isl3,isl4].forEach((p,i)=>islandPolys[i]=p);
+  function currentIsland(){for(let i=0;i<islandPolys.length;i++)if(polyInside(camera.position.x,camera.position.z,islandPolys[i]))return i;return-1;}
+
   const SPAWN_ISLANDS=[isl0,isl1,isl2,isl3,isl4].map(poly=>{let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;poly.forEach(p=>{x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);z0=Math.min(z0,p[1]);z1=Math.max(z1,p[1]);});return{poly,x0,x1,z0,z1};});
   function randSpawnPoint(){
     // Always ≥70 % near the player so golems are visible and fights feel immediate.
@@ -1228,8 +1281,18 @@
     updateHostileCount();
   }
   function checkWaveClear(){
-    const remaining=golems.filter(g=>g.userData.alive&&isHostile(g)).length;
-    if(waveActive&&spawnQueue.filter(q=>q.hostile).length===0&&remaining===0){
+    const hostile=golems.filter(g=>g.userData.alive&&isHostile(g));
+    const remaining=hostile.length;
+    const qEmpty=spawnQueue.filter(q=>q.hostile).length===0;
+    // If last 1-2 golems have been alive >18s since last kill, teleport them to the player
+    if(waveActive&&qEmpty&&remaining>0&&remaining<=2){
+      const now=performance.now()/1000;
+      if(now-lastKillT>18){
+        hostile.forEach(g=>{const ang=rand(0,Math.PI*2),d=rand(14,22);g.position.x=camera.position.x+Math.cos(ang)*d;g.position.z=camera.position.z+Math.sin(ang)*d;});
+        lastKillT=now;showBanner('HUNT','Stragglers closing in',1200);
+      }
+    }
+    if(waveActive&&qEmpty&&remaining===0){
       waveActive=false;interWaveTimer=4.5;
       const bonus=wave*150;addScore(bonus);
       showBanner('WAVE CLEAR','+'+bonus+' BONUS · NEXT IN 4',2600);
@@ -1424,12 +1487,19 @@
   document.addEventListener('mousemove',e=>{if(!locked)return;const sens=zooming?.0010:.0022;yaw-=e.movementX*sens;pitch-=e.movementY*sens;pitch=Math.max(-1.4,Math.min(1.3,pitch));});
 
   function startGame(){
+    state.endless=!!(window._endless);
     initAudio();if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume();
     document.getElementById('start').style.display='none';
     state.started=true;updateVitals();updateWeaponHud();equipWeapon();
     bgm.play().catch(()=>{});
     lockPointer();
-    setTimeout(startWave,800);
+    if(state.endless){
+      document.getElementById('waveVal').textContent='♾ ENDLESS';
+      showBanner('ENDLESS MODE','100 kills per island · all 5 open',2800);
+      endlessSpawnTimer=1;
+    } else {
+      setTimeout(startWave,800);
+    }
   }
   function gameOver(){
     state.over=true;
@@ -1578,8 +1648,28 @@
       if(state.dmgMultTimer>0){state.dmgMultTimer-=dt;if(state.dmgMultTimer<=0){state.dmgMult=1;}updateBoostHud();}
       updateGolems(dt);updateProjs(dt);updateEProjs(dt);updateBursts(dt);updatePickups(dt);updateLightnings(dt);updateTimeOfDay(dt);
       // wave spawning
-      if(waveActive){spawnTimer-=dt;if(spawnTimer<=0&&spawnQueue.length){if(golems.length<22){spawnFromQueue();spawnTimer=0.45+rnd()*0.5;}else spawnTimer=0.4;}}
-      else if(interWaveTimer>0){interWaveTimer-=dt;if(interWaveTimer<=0)startWave();}
+      if(state.endless){
+        // Endless: maintain 18 golems alive, spawn on current island or near player
+        endlessSpawnTimer-=dt;
+        if(golems.length<18&&endlessSpawnTimer<=0){
+          const ci=currentIsland();
+          let sp;
+          if(ci>=0){
+            // Spawn on current island
+            const s=SPAWN_ISLANDS[ci];let tries=0;
+            do{sp={x:rand(s.x0,s.x1),z:rand(s.z0,s.z1)};tries++;}
+            while(tries<30&&(!polyInside(sp.x,sp.z,s.poly)||golemBlocked(sp.x,sp.z,1.3)||Math.hypot(sp.x-camera.position.x,sp.z-camera.position.z)<12));
+          } else { const ang=rand(0,Math.PI*2),d=rand(18,40);sp={x:camera.position.x+Math.cos(ang)*d,z:camera.position.z+Math.sin(ang)*d}; }
+          // wave-weighted pool
+          const pool=endlessWaveN[ci<0?0:ci]<3?['grunt','runner','sapling']:['grunt','runner','tank','shooter','dragon','sapling','bramble','treant'];
+          const g=makeGolem(sp.x,sp.z,pick(pool));if(g)g.userData.hostile=true;
+          updateHostileCount();
+          endlessSpawnTimer=0.5+rnd()*0.4;
+        }
+      } else {
+        if(waveActive){spawnTimer-=dt;if(spawnTimer<=0&&spawnQueue.length){if(golems.length<22){spawnFromQueue();spawnTimer=0.45+rnd()*0.5;}else spawnTimer=0.4;}}
+        else if(interWaveTimer>0){interWaveTimer-=dt;if(interWaveTimer<=0)startWave();}
+      }
     } else {
       updateBursts(dt);
     }
