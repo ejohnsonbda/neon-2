@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NEON CITY — Golem Bestiary</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{ --cyan:#19f5ff; --mag:#ff2d95; --amber:#ffe45c; --green:#57ff87; --ink:#06070f; }
+    *{box-sizing:border-box;}
+    html,body{margin:0;background:#06070f;color:#fff;font-family:'Rajdhani',system-ui,sans-serif;}
+    body{
+      min-height:100vh;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(255,45,149,.10), transparent 45%),
+        radial-gradient(circle at 85% 15%, rgba(25,245,255,.10), transparent 45%),
+        radial-gradient(circle at 50% 100%, rgba(156,92,255,.10), transparent 55%),
+        #06070f;
+    }
+    .orb{font-family:'Orbitron',sans-serif;}
+    header{
+      text-align:center;padding:46px 20px 10px;position:relative;
+    }
+    header .kicker{font-size:13px;letter-spacing:7px;color:var(--cyan);text-transform:uppercase;margin-bottom:10px;opacity:.85;}
+    header h1{
+      font-family:'Orbitron';font-weight:900;font-size:clamp(34px,7vw,72px);letter-spacing:6px;margin:0;
+      background:linear-gradient(90deg,var(--cyan),var(--mag) 55%,var(--amber));
+      -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+      filter:drop-shadow(0 0 26px rgba(25,245,255,.35));
+    }
+    header p{max-width:640px;margin:14px auto 0;color:rgba(255,255,255,.62);font-size:15px;line-height:1.55;letter-spacing:.3px;}
+    .legend{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:22px auto 0;max-width:760px;padding:0 16px;}
+    .legend .chip{font-size:11px;letter-spacing:2px;text-transform:uppercase;padding:5px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.16);color:rgba(255,255,255,.7);background:rgba(255,255,255,.03);}
+    .legend .chip b{font-weight:700;}
+    .grid{
+      display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+      gap:20px;max-width:1320px;margin:30px auto 70px;padding:0 22px;
+    }
+    .card{
+      position:relative;border-radius:18px;overflow:hidden;
+      background:transparent;
+      border:1px solid rgba(255,255,255,.09);
+      box-shadow:0 18px 50px rgba(0,0,0,.5);
+      transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    }
+    .card:hover{transform:translateY(-5px);box-shadow:0 28px 70px rgba(0,0,0,.62);}
+    .card .stage{position:relative;height:300px;cursor:grab;background:radial-gradient(ellipse at 50% 120%, rgba(40,46,66,.5), rgba(8,9,16,.0) 70%);}
+    .card .stage:active{cursor:grabbing;}
+    .card .glowline{position:absolute;left:0;right:0;bottom:0;height:2px;opacity:.9;}
+    /* one shared WebGL canvas pinned to the viewport; scenes are scissored into each card */
+    #gl{position:fixed;inset:0;width:100vw;height:100vh;z-index:0;pointer-events:none;}
+    .grid,header,footer{position:relative;z-index:1;}
+    .card .badge{
+      position:absolute;top:12px;left:12px;font-family:'Orbitron';font-size:10px;letter-spacing:2px;
+      padding:4px 10px;border-radius:6px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.18);
+    }
+    .card .boss-flag{
+      position:absolute;top:12px;right:12px;font-family:'Orbitron';font-size:9px;letter-spacing:2px;
+      padding:4px 9px;border-radius:6px;color:#06070f;font-weight:700;
+      background:linear-gradient(90deg,#ff2b5e,var(--mag));box-shadow:0 0 14px rgba(255,45,149,.6);
+    }
+    .card .info{padding:16px 18px 20px;background:linear-gradient(165deg,rgba(16,18,30,.96),rgba(8,9,18,.98));}
+    .card .info h2{font-family:'Orbitron';margin:0;font-size:18px;letter-spacing:1.5px;}
+    .card .info .role{font-size:12px;letter-spacing:2px;text-transform:uppercase;margin-top:3px;opacity:.6;}
+    .card .info .desc{font-size:13.5px;line-height:1.5;color:rgba(255,255,255,.66);margin:11px 0 14px;}
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;}
+    .stats .stat{text-align:center;padding:8px 4px;border-radius:9px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);}
+    .stats .stat .v{font-family:'Orbitron';font-size:16px;line-height:1;}
+    .stats .stat .k{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,.45);margin-top:5px;}
+    footer{text-align:center;padding:0 20px 50px;color:rgba(255,255,255,.4);font-size:12px;letter-spacing:2px;}
+    footer a{color:var(--cyan);text-decoration:none;}
+    #loading{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:#06070f;color:var(--cyan);font-family:'Orbitron';letter-spacing:5px;font-size:14px;}
+  </style>
+</head>
+<body>
+  <div id="loading" class="orb">SUMMONING GOLEMS…</div>
+  <canvas id="gl"></canvas>
+  <header>
+    <div class="kicker">Neon City · Threat Index</div>
+    <h1 class="orb">GOLEM BESTIARY</h1>
+    <p>Every stone construct roaming the rain-lit districts. Drag any specimen to rotate it. Stats are base values — HP scales each wave.</p>
+    <div class="legend">
+      <span class="chip"><b>HP</b> Durability</span>
+      <span class="chip"><b>SPD</b> Move speed</span>
+      <span class="chip"><b>DMG</b> Damage</span>
+      <span class="chip"><b>PTS</b> Score</span>
+    </div>
+  </header>
+  <div class="grid" id="grid"></div>
+  <footer>NEON CITY · GOLEM PURGE PROTOCOL · <a href="Neon City.html">▶ Launch Game</a></footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="js/enemies.js"></script>
+  <script>
+  (() => {
+    if(!window.THREE || !window.EnemyFactory){ document.getElementById('loading').textContent='FAILED TO LOAD'; return; }
+
+    // Display metadata per golem type — keys match EnemyFactory.TYPES
+    const ENTRIES = [
+      { type:'grunt',   name:'GRUNT',        role:'Melee · Common',   desc:'The backbone of the swarm. A hunched slate boulder that knuckle-walks toward you and swings stone fists.' },
+      { type:'runner',  name:'RUNNER',       role:'Melee · Fast',     desc:'A small low-slung rock that sprints in packs. Low health, but its speed closes distance before you can react.' },
+      { type:'tank',    name:'TANK',         role:'Melee · Heavy',    desc:'A massive multi-chunk colossus. Slow, but enormous health and crushing fists make it a wall of stone.' },
+      { type:'shooter', name:'SHADE-CASTER', role:'Ranged · Caster',  desc:'A tall elongated golem that cups a glowing charge orb and hurls energy bolts from range.' },
+      { type:'dragon',  name:'ROK-WYRM',     role:'Ranged · Flying',  desc:'A sinuous winged stone wyrm that circles overhead and rains bolts. Hard to pin down.' },
+      { type:'boss',    name:'APEX HORROR',  role:'BOSS · Wave 5+',   desc:'A four-eyed, four-armed monstrosity on long legs. Spawns every fifth wave with a dedicated health bar.', boss:true },
+      { type:'spider',  name:'SUPER APEX SPIDER', role:'BOSS · Wave 10+', desc:'A titanic eight-legged arachnid golem with venom fangs. The deadliest construct in Neon City.', boss:true },
+      { type:'sapling', name:'SAPLING',      role:'Melee · Swarm',    desc:'A tiny twig imp crowned with a leaf tuft. Weak alone, but it rushes in chittering groups.' },
+      { type:'bramble', name:'BRAMBLE',      role:'Melee · Thorned',  desc:'A hunched thorn-goblin with clawed arms and spiked back. Tougher than it looks and aggressive.' },
+      { type:'treant',  name:'TREANT',       role:'Ranged · Woodland',desc:'A lumbering tree-beast with a leafy canopy that lobs thorn-seeds at long range.' },
+    ];
+
+    // ---- ONE shared renderer for all cards (multiple views, single context) ----
+    const glCanvas = document.getElementById('gl');
+    const renderer = new THREE.WebGLRenderer({ canvas:glCanvas, antialias:true, alpha:true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.8));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.45;
+    renderer.setScissorTest(true);
+    function sizeRenderer(){ renderer.setSize(window.innerWidth, window.innerHeight, false); }
+    sizeRenderer();
+
+    const grid = document.getElementById('grid');
+    const views = [];
+
+    ENTRIES.forEach((entry, i) => {
+      const def = EnemyFactory.TYPES[entry.type];
+      const glow = '#' + def.glow.toString(16).padStart(6,'0');
+
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.style.borderColor = glow + '22';
+      card.innerHTML = `
+        <div class="stage">
+          <div class="badge" style="color:${glow}">№ ${String(i+1).padStart(2,'0')}</div>
+          ${entry.boss ? '<div class="boss-flag">◤ BOSS ◢</div>' : ''}
+        </div>
+        <div class="glowline" style="background:linear-gradient(90deg,transparent,${glow},transparent);box-shadow:0 0 14px ${glow}"></div>
+        <div class="info">
+          <h2 style="color:${glow}">${entry.name}</h2>
+          <div class="role">${entry.role}</div>
+          <div class="desc">${entry.desc}</div>
+          <div class="stats">
+            <div class="stat"><div class="v" style="color:${glow}">${def.hp}</div><div class="k">HP</div></div>
+            <div class="stat"><div class="v" style="color:${glow}">${def.speed}</div><div class="k">SPD</div></div>
+            <div class="stat"><div class="v" style="color:${glow}">${def.dmg||def.projDmg||0}</div><div class="k">DMG</div></div>
+            <div class="stat"><div class="v" style="color:${glow}">${def.score}</div><div class="k">PTS</div></div>
+          </div>
+        </div>`;
+      grid.appendChild(card);
+
+      views.push(makeView(card.querySelector('.stage'), entry.type, def.glow));
+    });
+
+    function makeView(stage, type, glowHex) {
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+
+      // Lighting — bright & neutral so the grey rock is clearly visible.
+      scene.add(new THREE.AmbientLight(0xffffff, 1.15));
+      scene.add(new THREE.HemisphereLight(0xeef2ff, 0x3a3e4a, 1.6));
+      const key = new THREE.DirectionalLight(0xffffff, 2.4);
+      key.position.set(-3, 6, 5); key.castShadow = true;
+      key.shadow.mapSize.set(1024,1024);
+      key.shadow.camera.near = 1; key.shadow.camera.far = 30;
+      key.shadow.camera.left=-8;key.shadow.camera.right=8;key.shadow.camera.top=8;key.shadow.camera.bottom=-8;
+      scene.add(key);
+      const fill = new THREE.DirectionalLight(0xdce6f5, 1.4); fill.position.set(4, 2, 6); scene.add(fill);
+      const back = new THREE.DirectionalLight(0xc8d4ec, 1.0); back.position.set(0, 3, -6); scene.add(back);
+      // colored rim — kept low so it edge-lights without tinting the whole body
+      const rim = new THREE.PointLight(glowHex, 0.9, 22, 2); rim.position.set(2.5, 3, -3.5); scene.add(rim);
+
+      // Ground disc + neon ring + faint grid
+      const disc = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.2, 0.3, 48), new THREE.MeshStandardMaterial({ color:0x252a3a, roughness:.8, metalness:.2 }));
+      disc.position.y = -0.15; disc.receiveShadow = true; scene.add(disc);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(3.2, 0.05, 8, 64), new THREE.MeshBasicMaterial({ color:glowHex }));
+      ring.rotation.x = Math.PI/2; ring.position.y = 0.02; scene.add(ring);
+      const gh = new THREE.GridHelper(6, 12, glowHex, 0x1a1d33);
+      gh.position.y = 0.011; gh.material.transparent = true; gh.material.opacity = 0.28; scene.add(gh);
+
+      // Build the golem with the SAME factory the game uses
+      const golem = EnemyFactory.build(type);
+      const bbox = new THREE.Box3().setFromObject(golem);
+      const height = bbox.max.y - bbox.min.y;
+      const baseY = -bbox.min.y;
+      golem.position.y = baseY;
+      golem.traverse(o => { if(o.isMesh){ o.castShadow = true; o.receiveShadow = true; } });
+      const pivot = new THREE.Group(); pivot.add(golem); scene.add(pivot);
+
+      const camDist = Math.max(7, height * 1.5);
+      camera.position.set(0, height * 0.55, camDist);
+      camera.lookAt(0, height * 0.45, 0);
+
+      const parts = golem.userData.parts || {};
+      const cores = golem.userData.cores || [];
+
+      // Drag-to-rotate
+      let dragging = false, lastX = 0, autoSpin = true, yaw = 0.5, idleT = 0;
+      stage.addEventListener('pointerdown', e => { dragging = true; lastX = e.clientX; autoSpin = false; idleT = 0; });
+      window.addEventListener('pointerup', () => { dragging = false; });
+      window.addEventListener('pointermove', e => { if(dragging){ yaw += (e.clientX - lastX) * 0.01; lastX = e.clientX; } });
+
+      return { stage, scene, camera,
+        update(dt, t){
+          if(!dragging){ idleT += dt; if(idleT > 2.5) autoSpin = true; }
+          if(autoSpin) yaw += dt * 0.5;
+          pivot.rotation.y = yaw;
+          if(parts.legs) parts.legs.forEach((l,i)=>{ if(l) l.rotation.x = Math.sin(t*3 + i*Math.PI)*0.16; });
+          if(parts.arms) parts.arms.forEach((a,i)=>{ if(a) a.rotation.z = Math.sin(t*2 + i*Math.PI)*0.1; });
+          if(parts.wings) parts.wings.forEach((w,i)=>{ if(w) w.rotation.z = Math.sin(t*7 + i*Math.PI)*0.5; });
+          if(parts.orb && parts.orb.scale) parts.orb.scale.setScalar(1 + Math.sin(t*3)*0.13);
+          golem.position.y = baseY + (type==='dragon' ? Math.sin(t*1.5)*0.25 + 0.6 : Math.abs(Math.sin(t*3))*0.06);
+          const pulse = 2.2 + Math.sin(t*5)*0.8;
+          cores.forEach(m => { if(m && m.emissiveIntensity !== undefined) m.emissiveIntensity = pulse; });
+          rim.intensity = 0.8 + Math.sin(t*4)*0.25;
+        }
+      };
+    }
+
+    // ---- single render loop: scissor each view into its card's screen rect ----
+    const clock = new THREE.Clock();
+    const _tmpVec = new THREE.Vector2();
+    function render(){
+      requestAnimationFrame(render);
+      // keep the shared drawing buffer matched to the viewport every frame — this also
+      // self-heals the initial 0×0 case (innerWidth/Height are 0 before first layout).
+      const vpW = window.innerWidth, vpH = window.innerHeight;
+      if(vpW < 2 || vpH < 2) return;
+      const sz = renderer.getSize(_tmpVec);
+      if(sz.x !== vpW || sz.y !== vpH) renderer.setSize(vpW, vpH, false);
+      const dt = Math.min(clock.getDelta(), 0.05);
+      const t = clock.elapsedTime;
+      for(const v of views){
+        const r = v.stage.getBoundingClientRect();
+        // skip if off-screen or not yet laid out
+        if(r.bottom < 0 || r.top > vpH || r.width < 2 || r.height < 2) continue;
+        v.update(dt, t);
+        const left = r.left;
+        const bottom = vpH - r.bottom; // WebGL y is bottom-up
+        renderer.setViewport(left, bottom, r.width, r.height);
+        renderer.setScissor(left, bottom, r.width, r.height);
+        v.camera.aspect = r.width / r.height;
+        v.camera.updateProjectionMatrix();
+        renderer.render(v.scene, v.camera);
+      }
+    }
+    render();
+
+    addEventListener('resize', sizeRenderer);
+    document.getElementById('loading').style.display = 'none';
+  })();
+  </script>
+</body>
+</html>
