@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Island Church FPS Level + Bridge City + Neo Tokyo - Three.js</title>
+  <style>
+    html, body { margin:0; height:100%; overflow:hidden; background:#07111f; font-family: Inter, system-ui, -apple-system, Segoe UI, Arial, sans-serif; }
+    canvas { display:block; }
+    #hud {
+      position:fixed; left:16px; top:16px; z-index:5; color:#fff; max-width:390px;
+      background:rgba(5, 11, 22, .72); border:1px solid rgba(255,255,255,.14); border-radius:16px;
+      padding:14px 16px; backdrop-filter: blur(10px); box-shadow:0 20px 50px rgba(0,0,0,.28);
+    }
+    #hud h1 { margin:0 0 7px; font-size:18px; letter-spacing:.2px; }
+    #hud p { margin:5px 0; color:rgba(255,255,255,.78); line-height:1.35; font-size:13px; }
+    #hud kbd { background:rgba(255,255,255,.12); color:#fff; border:1px solid rgba(255,255,255,.18); border-bottom-color:rgba(0,0,0,.35); border-radius:6px; padding:1px 6px; font-size:12px; }
+    #crosshair { position:fixed; inset:0; display:grid; place-items:center; pointer-events:none; z-index:4; }
+    #crosshair:after { content:""; width:9px; height:9px; border:2px solid rgba(255,255,255,.7); border-radius:50%; box-shadow:0 0 15px rgba(20,200,255,.45); }
+    #start {
+      position:fixed; inset:0; z-index:8; display:grid; place-items:center; color:white;
+      background:radial-gradient(circle at center, rgba(15,28,45,.75), rgba(3,8,15,.96));
+    }
+    #start .card { width:min(560px, calc(100vw - 32px)); padding:28px; border-radius:24px; background:rgba(7,15,27,.82); border:1px solid rgba(255,255,255,.16); box-shadow:0 30px 90px rgba(0,0,0,.45); text-align:center; }
+    #start h2 { margin:0 0 10px; font-size:30px; }
+    #start p { color:rgba(255,255,255,.78); line-height:1.45; }
+    #start button { cursor:pointer; border:0; border-radius:999px; padding:13px 22px; color:#04121e; background:#9ee7ff; font-weight:800; box-shadow:0 10px 30px rgba(68,200,255,.25); }
+    #miniMap {
+      position:fixed; right:16px; bottom:16px; width:230px; height:150px; z-index:5;
+      background:rgba(3,9,18,.66); border:1px solid rgba(255,255,255,.13); border-radius:16px; overflow:hidden;
+      box-shadow:0 20px 50px rgba(0,0,0,.22); backdrop-filter: blur(10px);
+    }
+    #miniMap canvas { width:100%; height:100%; }
+    #tag { position:fixed; right:16px; top:16px; color:rgba(255,255,255,.72); font-size:12px; z-index:5; background:rgba(0,0,0,.32); padding:8px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.12); }
+  </style>
+</head>
+<body>
+  <div id="hud">
+    <h1>Island Church FPS Level + Bridge City + Neo Tokyo</h1>
+    <p>Procedural Three.js model based on the island reference: explorable church, tower, guest rooms, dock, boats, paths, trees, interior room layouts, plus a long bridge leading to a second city district that is about 30% larger, and a second neon bridge to a modern Tokyo-style district.</p>
+    <p><kbd>Click</kbd> lock mouse · <kbd>WASD</kbd> move · <kbd>Shift</kbd> run · <kbd>Space</kbd> jump · <kbd>R</kbd> roofs · <kbd>M</kbd> map camera · <kbd>L</kbd> labels</p>
+  </div>
+  <div id="tag">Three.js FPS blockout + bridges + Neo Tokyo district</div>
+  <div id="crosshair"></div>
+  <div id="start"><div class="card"><h2>Island + Bridge City + Neo Tokyo Ready</h2><p>Click start to enter the FPS prototype. This version fixes forward movement, extends the island with a long bridge to a larger harbor city, then adds a second bridge into a modern Tokyo-style neon district with towers, roads, alleys, signs, and elevated rails.</p><button id="startBtn">Start FPS Walkthrough</button></div></div>
+  <div id="miniMap"><canvas id="mapCanvas" width="460" height="300"></canvas></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script>
+  (() => {
+    if (!window.THREE) {
+      document.body.innerHTML = '<div style="color:white;padding:30px;font-family:system-ui">Three.js could not load. Open this file with internet access or download three.min.js beside the file.</div>';
+      return;
+    }
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x07111f);
+    scene.fog = new THREE.FogExp2(0x07111f, 0.0045);
+
+    const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.1, 1500);
+    camera.position.set(-38, 3.1, 52);
+    camera.rotation.order = 'YXZ';
+
+    const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.8));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.body.appendChild(renderer.domElement);
+
+    const clock = new THREE.Clock();
+    const world = new THREE.Group();
+    scene.add(world);
+
+    const roofGroup = new THREE.Group();
+    const labelGroup = new THREE.Group();
+    world.add(roofGroup, labelGroup);
+
+    const colliders = [];
+    const markers = [];
+    const walkSurfaces = [];
+
+    const COLORS = {
+      grass: 0x486d3e,
+      grass2: 0x5b7d38,
+      path: 0xcab892,
+      stone: 0xb8b1a5,
+      stucco: 0xe9e2d3,
+      trim: 0x6c4b3b,
+      roof: 0xb45133,
+      roofDark: 0x723725,
+      wood: 0x76512f,
+      darkWood: 0x3c2b20,
+      glass: 0x77c8d6,
+      water: 0x0b6b8f,
+      sand: 0xc8b17a,
+      rock: 0x6f7474,
+      metal: 0x555b63,
+      lantern: 0xffc96c
+    };
+
+    function seededRandom(seed=123456) {
+      return function() {
+        seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+        let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+    const rnd = seededRandom(89173);
+    const rand = (a,b) => a + (b-a) * rnd();
+
+    function canvasTexture(type, base, accent, size=128) {
+      const c = document.createElement('canvas');
+      c.width = c.height = size;
+      const g = c.getContext('2d');
+      g.fillStyle = '#' + base.toString(16).padStart(6,'0');
+      g.fillRect(0,0,size,size);
+      if (type === 'grass') {
+        for(let i=0;i<900;i++){
+          const v = Math.floor(rand(0,38));
+          g.fillStyle = `rgba(${45+v},${95+v},${45+v},${rand(.12,.35)})`;
+          g.fillRect(rand(0,size), rand(0,size), rand(.6,2.2), rand(.6,2.2));
+        }
+      }
+      if (type === 'stucco') {
+        for(let i=0;i<500;i++){
+          const v = Math.floor(rand(190,255));
+          g.fillStyle = `rgba(${v},${v-6},${v-18},${rand(.08,.22)})`;
+          g.fillRect(rand(0,size), rand(0,size), rand(.5,2.5), rand(.5,2.5));
+        }
+        g.strokeStyle = 'rgba(70,50,35,.09)';
+        for(let y=0;y<size;y+=16){ g.beginPath(); g.moveTo(0,y+rand(-2,2)); g.lineTo(size,y+rand(-2,2)); g.stroke(); }
+      }
+      if (type === 'roof') {
+        g.fillStyle = '#' + base.toString(16).padStart(6,'0'); g.fillRect(0,0,size,size);
+        for(let y=0;y<size;y+=18){
+          g.fillStyle = 'rgba(255,215,170,.12)'; g.fillRect(0,y,size,2);
+          for(let x=(y/18%2)*12; x<size; x+=24){
+            g.strokeStyle = 'rgba(45,20,15,.18)'; g.strokeRect(x,y,24,18);
+          }
+        }
+      }
+      if (type === 'wood') {
+        for(let x=0;x<size;x+=8){
+          g.fillStyle = x % 16 === 0 ? 'rgba(255,220,150,.08)' : 'rgba(0,0,0,.07)';
+          g.fillRect(x,0,4,size);
+        }
+        g.strokeStyle = 'rgba(0,0,0,.15)';
+        for(let y=0;y<size;y+=24){ g.beginPath(); g.moveTo(0,y); g.lineTo(size,y + rand(-4,4)); g.stroke(); }
+      }
+      if (type === 'stone') {
+        g.strokeStyle = 'rgba(0,0,0,.18)';
+        for(let y=0;y<size;y+=18){
+          for(let x=(y/18%2)*14;x<size;x+=28){ g.strokeRect(x,y,28,18); }
+        }
+        for(let i=0;i<280;i++){ g.fillStyle = `rgba(255,255,255,${rand(.02,.08)})`; g.fillRect(rand(0,size),rand(0,size),rand(1,4),rand(1,4)); }
+      }
+      if (type === 'path') {
+        g.strokeStyle = 'rgba(90,70,45,.18)';
+        for(let y=0;y<size;y+=13){ g.beginPath(); g.moveTo(0,y); g.lineTo(size,y+rand(-3,3)); g.stroke(); }
+        for(let i=0;i<350;i++){ g.fillStyle = `rgba(255,255,255,${rand(.03,.1)})`; g.fillRect(rand(0,size),rand(0,size),rand(1,3),rand(1,3)); }
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      return tex;
+    }
+
+    const textures = {
+      grass: canvasTexture('grass', COLORS.grass, COLORS.grass2),
+      stucco: canvasTexture('stucco', COLORS.stucco, COLORS.trim),
+      roof: canvasTexture('roof', COLORS.roof, COLORS.roofDark),
+      wood: canvasTexture('wood', COLORS.wood, COLORS.darkWood),
+      stone: canvasTexture('stone', COLORS.stone, COLORS.rock),
+      path: canvasTexture('path', COLORS.path, COLORS.sand)
+    };
+
+    textures.grass.repeat.set(12,12);
+    textures.stucco.repeat.set(2,2);
+    textures.roof.repeat.set(2,5);
+    textures.wood.repeat.set(3,3);
+    textures.stone.repeat.set(4,4);
+    textures.path.repeat.set(3,1);
+
+    const mats = {
+      grass: new THREE.MeshStandardMaterial({ map:textures.grass, color:0xffffff, roughness:.95 }),
+      stone: new THREE.MeshStandardMaterial({ map:textures.stone, color:0xffffff, roughness:.9 }),
+      stucco: new THREE.MeshStandardMaterial({ map:textures.stucco, color:0xffffff, roughness:.86 }),
+      roof: new THREE.MeshStandardMaterial({ map:textures.roof, color:0xffffff, roughness:.8, transparent:true, opacity:.76 }),
+      roofSolid: new THREE.MeshStandardMaterial({ map:textures.roof, color:0xffffff, roughness:.8 }),
+      wood: new THREE.MeshStandardMaterial({ map:textures.wood, color:0xffffff, roughness:.76 }),
+      darkWood: new THREE.MeshStandardMaterial({ color:COLORS.darkWood, roughness:.84 }),
+      path: new THREE.MeshStandardMaterial({ map:textures.path, color:0xffffff, roughness:.95 }),
+      sand: new THREE.MeshStandardMaterial({ color:COLORS.sand, roughness:.96 }),
+      rock: new THREE.MeshStandardMaterial({ color:COLORS.rock, roughness:.95 }),
+      trim: new THREE.MeshStandardMaterial({ color:COLORS.trim, roughness:.8 }),
+      metal: new THREE.MeshStandardMaterial({ color:COLORS.metal, roughness:.55, metalness:.25 }),
+      glass: new THREE.MeshStandardMaterial({ color:COLORS.glass, roughness:.12, metalness:.05, transparent:true, opacity:.34 }),
+      water: new THREE.MeshPhysicalMaterial({ color:COLORS.water, roughness:.2, transmission:0, transparent:true, opacity:.78, metalness:0, clearcoat:.4 }),
+      lantern: new THREE.MeshStandardMaterial({ color:COLORS.lantern, emissive:COLORS.lantern, emissiveIntensity:1.35, roughness:.35 })
+    };
+
+    // Lights
+    const hemi = new THREE.HemisphereLight(0x9fd7ff, 0x193513, 1.1);
+    scene.add(hemi);
+    const sun = new THREE.DirectionalLight(0xfff3d1, 3.0);
+    sun.position.set(-42, 82, 28);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048,2048);
+    sun.shadow.camera.near = 1;
+    sun.shadow.camera.far = 180;
+    sun.shadow.camera.left = -140;
+    sun.shadow.camera.right = 460;
+    sun.shadow.camera.top = 130;
+    sun.shadow.camera.bottom = -130;
+    scene.add(sun);
+
+
+    function addSkyAtmosphere() {
+      // Moon
+      const moon = new THREE.Mesh(
+        new THREE.SphereGeometry(8, 28, 28),
+        new THREE.MeshStandardMaterial({ color:0xe6f1ff, emissive:0x9db8d6, emissiveIntensity:.28, roughness:.85 })
+      );
+      moon.position.set(280, 110, -180);
+      scene.add(moon);
+      const moonGlow = new THREE.PointLight(0xbfd7ff, .45, 0, 2);
+      moonGlow.position.copy(moon.position);
+      scene.add(moonGlow);
+
+      // Stars
+      const starCount = 1400;
+      const starGeo = new THREE.BufferGeometry();
+      const pos = new Float32Array(starCount * 3);
+      for (let i = 0; i < starCount; i++) {
+        const radius = rand(320, 520);
+        const theta = rand(0, Math.PI * 2);
+        const y = rand(70, 180);
+        pos[i*3] = Math.cos(theta) * radius;
+        pos[i*3+1] = y;
+        pos[i*3+2] = Math.sin(theta) * radius;
+      }
+      starGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      const starMat = new THREE.PointsMaterial({ color:0xf3f7ff, size:1.5, transparent:true, opacity:.95, sizeAttenuation:true });
+      const stars = new THREE.Points(starGeo, starMat);
+      scene.add(stars);
+
+      // Clouds as soft clustered spheres
+      const cloudMat = new THREE.MeshStandardMaterial({ color:0xe8eef7, transparent:true, opacity:.72, roughness:1 });
+      function makeCloud(x,y,z,scale=1) {
+        const g = new THREE.Group();
+        g.position.set(x,y,z);
+        for(let i=0;i<6;i++) {
+          const puff = new THREE.Mesh(new THREE.SphereGeometry(rand(5,9), 16, 16), cloudMat);
+          puff.position.set(rand(-10,10), rand(-2,2), rand(-4,4));
+          puff.scale.set(rand(.9,1.4), rand(.55,1.0), rand(.9,1.4));
+          g.add(puff);
+        }
+        g.scale.setScalar(scale);
+        scene.add(g);
+        return g;
+      }
+      const clouds = [];
+      clouds.push(makeCloud(-70, 62, -80, 1.2));
+      clouds.push(makeCloud(70, 75, 40, 1.45));
+      clouds.push(makeCloud(220, 68, -30, 1.7));
+      clouds.push(makeCloud(355, 88, 25, 1.9));
+      clouds.push(makeCloud(430, 72, -55, 1.3));
+      scene.userData.skyClouds = clouds;
+      scene.userData.starField = stars;
+    }
+    addSkyAtmosphere();
+
+    function mesh(geo, mat, x=0, y=0, z=0, cast=true, receive=true) {
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(x,y,z);
+      m.castShadow = cast;
+      m.receiveShadow = receive;
+      return m;
+    }
+
+    function box(w,h,d, mat, x=0,y=0,z=0) {
+      return mesh(new THREE.BoxGeometry(w,h,d), mat, x,y,z);
+    }
+
+    function cylinder(r1,r2,h,seg,mat,x=0,y=0,z=0) {
+      return mesh(new THREE.CylinderGeometry(r1,r2,h,seg), mat, x,y,z);
+    }
+
+    // Island polygon based on the reference silhouette
+    const islandPts = [
+      [-63,-28], [-54,-44], [-32,-48], [-7,-43], [22,-45], [52,-35], [68,-15],
+      [72,10], [58,29], [26,38], [-2,44], [-34,38], [-61,23], [-75,0]
+    ];
+
+    function pointInPoly(x,z, poly=islandPts){
+      let inside = false;
+      for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+        const xi=poly[i][0], zi=poly[i][1], xj=poly[j][0], zj=poly[j][1];
+        const intersect = ((zi>z)!==(zj>z)) && (x < (xj-xi)*(z-zi)/(zj-zi)+xi);
+        if(intersect) inside = !inside;
+      }
+      return inside;
+    }
+
+    function makeIsland() {
+      const shape = new THREE.Shape();
+      shape.moveTo(islandPts[0][0], islandPts[0][1]);
+      for (let i=1;i<islandPts.length;i++) shape.lineTo(islandPts[i][0], islandPts[i][1]);
+      shape.closePath();
+      const land = new THREE.ExtrudeGeometry(shape, { depth:3.3, bevelEnabled:true, bevelSize:.65, bevelThickness:.45, bevelSegments:2 });
+      land.rotateX(Math.PI/2);
+      const island = new THREE.Mesh(land, mats.grass);
+      island.receiveShadow = true;
+      island.castShadow = true;
+      world.add(island);
+
+      const beachShape = new THREE.Shape();
+      const scale = 1.035;
+      beachShape.moveTo(islandPts[0][0]*scale, islandPts[0][1]*scale);
+      for(let i=1;i<islandPts.length;i++) beachShape.lineTo(islandPts[i][0]*scale, islandPts[i][1]*scale);
+      beachShape.closePath();
+      const beachGeo = new THREE.ShapeGeometry(beachShape);
+      beachGeo.rotateX(Math.PI/2);
+      const beach = new THREE.Mesh(beachGeo, mats.sand);
+      beach.position.y = -0.04;
+      beach.receiveShadow = true;
+      world.add(beach);
+
+      // edge rocks
+      const rockGeo = new THREE.DodecahedronGeometry(1,0);
+      for(let i=0;i<islandPts.length;i++){
+        const a = islandPts[i], b = islandPts[(i+1)%islandPts.length];
+        const len = Math.hypot(b[0]-a[0], b[1]-a[1]);
+        const count = Math.floor(len/3.5);
+        for(let j=0;j<count;j++){
+          const t = (j + rnd()) / count;
+          const x = a[0] + (b[0]-a[0])*t + rand(-2,2);
+          const z = a[1] + (b[1]-a[1])*t + rand(-2,2);
+          const r = new THREE.Mesh(rockGeo, mats.rock);
+          r.position.set(x, rand(-.35,.3), z);
+          r.scale.set(rand(.65,1.9), rand(.4,1.15), rand(.65,1.9));
+          r.rotation.set(rand(0,Math.PI), rand(0,Math.PI), rand(0,Math.PI));
+          r.castShadow = r.receiveShadow = true;
+          world.add(r);
+        }
+      }
+    }
+
+    makeIsland();
+
+
+    // Second connected landmass: larger harbor city district
+    const secondCityPts = [
+      [72,-70], [98,-92], [142,-104], [196,-104], [244,-88], [282,-62],
+      [304,-18], [308,28], [296,66], [264,100], [216,118], [156,124],
+      [106,112], [72,84], [56,38], [54,-12]
+    ];
+
+    const neoTokyoPts = [
+      [238,-92], [278,-122], [338,-132], [408,-124], [474,-102], [530,-68],
+      [564,-18], [572,42], [560,88], [530,122], [476,148], [404,160],
+      [330,154], [274,132], [240,94], [224,26], [224,-36]
+    ];
+
+    function makeIslandFromPoly(poly, grassMaterial=mats.grass) {
+      const shape = new THREE.Shape();
+      shape.moveTo(poly[0][0], poly[0][1]);
+      for (let i=1;i<poly.length;i++) shape.lineTo(poly[i][0], poly[i][1]);
+      shape.closePath();
+      const land = new THREE.ExtrudeGeometry(shape, { depth:3.3, bevelEnabled:true, bevelSize:.65, bevelThickness:.45, bevelSegments:2 });
+      land.rotateX(Math.PI/2);
+      const island = new THREE.Mesh(land, grassMaterial);
+      island.receiveShadow = true;
+      island.castShadow = true;
+      world.add(island);
+
+      const beachShape = new THREE.Shape();
+      const scale = 1.03;
+      beachShape.moveTo(poly[0][0]*scale, poly[0][1]*scale);
+      for(let i=1;i<poly.length;i++) beachShape.lineTo(poly[i][0]*scale, poly[i][1]*scale);
+      beachShape.closePath();
+      const beachGeo = new THREE.ShapeGeometry(beachShape);
+      beachGeo.rotateX(Math.PI/2);
+      const beach = new THREE.Mesh(beachGeo, mats.sand);
+      beach.position.y = -0.04;
+      beach.receiveShadow = true;
+      world.add(beach);
+
+      const rockGeo = new THREE.DodecahedronGeometry(1,0);
+      for(let i=0;i<poly.length;i++){
+        const a = poly[i], b = poly[(i+1)%poly.length];
+        const len = Math.hypot(b[0]-a[0], b[1]-a[1]);
+        const count = Math.floor(len/3.5);
+        for(let j=0;j<count;j++){
+          const t = (j + rnd()) / count;
+          const x = a[0] + (b[0]-a[0])*t + rand(-2,2);
+          const z = a[1] + (b[1]-a[1])*t + rand(-2,2);
+          const r = new THREE.Mesh(rockGeo, mats.rock);
+          r.position.set(x, rand(-.35,.3), z);
+          r.scale.set(rand(.65,1.9), rand(.4,1.15), rand(.65,1.9));
+          r.rotation.set(rand(0,Math.PI), rand(0,Math.PI), rand(0,Math.PI));
+          r.castShadow = r.receiveShadow = true;
+          world.add(r);
+        }
+      }
+    }
+
+    makeIslandFromPoly(secondCityPts);
+    makeIslandFromPoly(neoTokyoPts, new THREE.MeshStandardMaterial({ map:textures.grass, color:0xbcc6c5, roughness:.92 }));
+
+    // Water: two planes for rich surface and shallow-water feel.
+    const waterGeo = new THREE.PlaneGeometry(900, 560, 96, 64);
+    waterGeo.rotateX(-Math.PI/2);
+    const water = new THREE.Mesh(waterGeo, mats.water);
+    water.position.y = -0.42;
+    water.receiveShadow = true;
+    scene.add(water);
+    const reefMat = new THREE.MeshBasicMaterial({ color:0x20e0d0, transparent:true, opacity:.08, depthWrite:false });
+    const reef = new THREE.Mesh(new THREE.CircleGeometry(225, 128), reefMat);
+    reef.rotation.x = -Math.PI/2;
+    reef.position.set(0,-.39,0);
+    scene.add(reef);
+
+    function makePath(points, width=1.6) {
+      for(let i=0;i<points.length-1;i++){
+        const a = new THREE.Vector3(points[i][0], .08, points[i][1]);
+        const b = new THREE.Vector3(points[i+1][0], .08, points[i+1][1]);
+        const mid = a.clone().add(b).multiplyScalar(.5);
+        const len = a.distanceTo(b);
+        const p = box(width, .08, len, mats.path, mid.x, .09, mid.z);
+        p.rotation.y = Math.atan2((b.x-a.x), (b.z-a.z));
+        p.receiveShadow = true;
+        world.add(p);
+      }
+    }
+
+    makePath([[-62,-26],[-48,-16],[-31,-11],[-10,-4],[12,-3],[38,-7],[60,-17]], 2.2);
+    makePath([[-48,24],[-31,16],[-15,8],[-5,4],[7,4],[18,8],[32,17],[51,23]], 1.75);
+    makePath([[-19,-41],[-13,-27],[-8,-12],[-7,7],[-3,28]], 1.55);
+    makePath([[42,-32],[47,-20],[54,-14],[61,-13]], 1.65);
+    makePath([[-65,2],[-57,13],[-48,25]], 1.55);
+    makePath([[12,-29],[13,-15],[11,-2],[9,13]], 1.45);
+
+
+    // Bridge and city-side roads
+    makePath([[60,-17],[78,-13],[96,-10],[114,-8]], 2.35);
+    makePath([[114,-8],[132,-8],[151,-8],[171,-8],[192,-10]], 2.25);
+    makePath([[126,22],[145,24],[168,26],[194,26]], 1.9);
+    makePath([[128,-30],[151,-27],[175,-24],[197,-20]], 1.9);
+    makePath([[146,-36],[145,-15],[145,5],[145,25],[145,44]], 1.65);
+    makePath([[181,-36],[178,-15],[177,8],[178,33]], 1.65);
+
+    // Neo Tokyo side access roads
+    makePath([[218,-4],[242,-3],[266,-2],[292,-1]], 2.55);
+    makePath([[292,-1],[322,-1],[356,0],[392,0]], 2.8);
+    makePath([[308,-42],[332,-38],[360,-33],[389,-28]], 2.2);
+    makePath([[300,39],[326,41],[358,44],[390,43]], 2.2);
+    makePath([[326,-53],[326,-28],[326,0],[326,30],[326,57]], 1.9);
+    makePath([[365,-56],[362,-30],[362,0],[363,30],[365,60]], 1.9);
+
+    function makeGabledRoof(w,d,h, mat=mats.roof) {
+      const geo = new THREE.BufferGeometry();
+      const verts = new Float32Array([
+        -w/2,0,-d/2,  w/2,0,-d/2,  0,h,-d/2,
+        -w/2,0, d/2,  w/2,0, d/2,  0,h, d/2
+      ]);
+      const idx = [0,1,2, 3,5,4, 0,3,4, 0,4,1, 1,4,5, 1,5,2, 2,5,3, 2,3,0];
+      geo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+      geo.setIndex(idx);
+      geo.computeVertexNormals();
+      const m = new THREE.Mesh(geo, mat);
+      m.castShadow = true; m.receiveShadow = true;
+      return m;
+    }
+
+    function addCollider(obj) { colliders.push(obj); return obj; }
+    function addWalkSurface(x, z, w, d, y) { walkSurfaces.push({ x, z, w, d, y }); }
+
+    function wall(w,h,d,x,y,z, mat=mats.stucco) {
+      const m = box(w,h,d,mat,x,y,z);
+      addCollider(m);
+      return m;
+    }
+
+    function createWindow(parent, x,y,z, w,h, side='front') {
+      const frame = box(w+.18, h+.18, .08, mats.trim, x, y, z);
+      const pane = box(w, h, .09, mats.glass, x, y, z + (side==='front'? .005 : -.005));
+      if(side==='left' || side==='right') { frame.rotation.y = Math.PI/2; pane.rotation.y = Math.PI/2; }
+      parent.add(frame, pane);
+    }
+
+    function createDoor(parent, x,z, side='front') {
+      const d = box(1.35, 2.45, .12, mats.darkWood, x, 1.35, z);
+      if(side==='left' || side==='right') d.rotation.y = Math.PI/2;
+      parent.add(d);
+    }
+
+    function createTable(parent, x,z, scale=1, mat=mats.wood) {
+      const top = box(1.7*scale,.18,1.0*scale, mat, x, .74, z);
+      parent.add(top);
+      [[-.65,-.35],[.65,-.35],[-.65,.35],[.65,.35]].forEach(p=>parent.add(box(.12,.72,.12, mats.darkWood, x+p[0]*scale, .38, z+p[1]*scale)));
+    }
+    function createBed(parent,x,z,rot=0) {
+      const g = new THREE.Group();
+      g.add(box(1.45,.35,2.4,mats.wood,0,.38,0));
+      g.add(box(1.25,.22,.75,new THREE.MeshStandardMaterial({color:0xd7d1c2, roughness:.9}),0,.68,-.68));
+      g.add(box(1.28,.18,1.15,new THREE.MeshStandardMaterial({color:0x49627a, roughness:.9}),0,.7,.38));
+      g.position.set(x,0,z); g.rotation.y=rot; parent.add(g);
+    }
+    function createBench(parent,x,z,rot=0,scale=1) {
+      const g = new THREE.Group();
+      g.add(box(2.4*scale,.18,.42*scale,mats.wood,0,.55,0));
+      g.add(box(2.4*scale,.16,.18*scale,mats.wood,0,.92,.28*scale));
+      g.add(box(.15,.55,.15,mats.darkWood,-1.0*scale,.3,0));
+      g.add(box(.15,.55,.15,mats.darkWood,1.0*scale,.3,0));
+      g.position.set(x,0,z); g.rotation.y=rot; parent.add(g);
+    }
+    function createShelf(parent,x,z,rot=0) {
+      const g = new THREE.Group();
+      g.add(box(.32,2.0,1.65,mats.wood,0,1,0));
+      for(let i=0;i<4;i++) g.add(box(.42,.08,1.75,mats.darkWood,0,.35+i*.45,0));
+      g.position.set(x,0,z); g.rotation.y=rot; parent.add(g);
+    }
+    function createCrate(parent,x,z,scale=1) {
+      const c = box(.95*scale,.85*scale,.95*scale,mats.wood,x,.43*scale,z);
+      c.rotation.y = rand(-.3,.3);
+      parent.add(c);
+    }
+
+    function addRoomLabel(text, x,y,z) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512; canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'rgba(2,9,16,.72)';
+      ctx.roundRect?.(8, 20, 496, 82, 22);
+      if (!ctx.roundRect) { ctx.fillRect(8,20,496,82); }
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(158,231,255,.7)'; ctx.lineWidth = 3; ctx.strokeRect(12,24,488,74);
+      ctx.font = 'bold 38px Inter, Arial'; ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.fillText(text, 256, 75);
+      const tex = new THREE.CanvasTexture(canvas);
+      const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map:tex, transparent:true, depthWrite:false }));
+      spr.position.set(x,y,z); spr.scale.set(7,1.75,1); spr.userData.label = text;
+      labelGroup.add(spr);
+      return spr;
+    }
+
+    function createExplorableBuilding(options) {
+      const { name, x, z, w, d, h=4.2, rot=0, roof='gable', partitions=[], windows=true, type='generic' } = options;
+      const g = new THREE.Group();
+      g.position.set(x,0,z); g.rotation.y = rot;
+      g.userData.name = name;
+      world.add(g);
+
+      const floor = box(w,.22,d,mats.wood,0,.11,0); floor.receiveShadow = true; g.add(floor);
+      g.add(wall(w,.35,.28,0,.33,-d/2,mats.stone));
+      g.add(wall(w,.35,.28,0,.33,d/2,mats.stone));
+      g.add(wall(.28,.35,d,-w/2,.33,0,mats.stone));
+      g.add(wall(.28,.35,d,w/2,.33,0,mats.stone));
+      g.add(wall(w,h,.35,0,h/2+0.33,-d/2,mats.stucco));
+      g.add(wall(w,h,.35,0,h/2+0.33,d/2,mats.stucco));
+      g.add(wall(.35,h,d,-w/2,h/2+0.33,0,mats.stucco));
+      g.add(wall(.35,h,d,w/2,h/2+0.33,0,mats.stucco));
+
+      partitions.forEach(p => {
+        if (Math.abs(p.x1-p.x2) < .01) g.add(wall(.25,h*.78,Math.abs(p.z2-p.z1),p.x1,h*.39+.33,(p.z1+p.z2)/2,mats.stucco));
+        else g.add(wall(Math.abs(p.x2-p.x1),h*.78,.25,(p.x1+p.x2)/2,h*.39+.33,p.z1,mats.stucco));
+      });
+
+      // Doors and windows
+      createDoor(g, 0, -d/2-.19, 'front');
+      if (windows) {
+        const countFront = Math.max(2, Math.floor(w/5));
+        for(let i=0;i<countFront;i++){
+          const xx = -w/2 + (i+1)*w/(countFront+1);
+          if(Math.abs(xx) > 1.2) createWindow(g,xx,2.5,-d/2-.22,1.1,1.15,'front');
+          createWindow(g,xx,2.5,d/2+.22,1.1,1.15,'back');
+        }
+        const countSide = Math.max(2, Math.floor(d/6));
+        for(let i=0;i<countSide;i++){
+          const zz = -d/2 + (i+1)*d/(countSide+1);
+          createWindow(g,-w/2-.22,2.5,zz,1.0,1.1,'left');
+          createWindow(g,w/2+.22,2.5,zz,1.0,1.1,'right');
+        }
+      }
+
+      // Furniture sets per building type
+      if(type === 'church') {
+        for(let row=0; row<9; row++){
+          createBench(g,-2.8, -d/2+8+row*2.2, 0, .95);
+          createBench(g, 2.8, -d/2+8+row*2.2, 0, .95);
+        }
+        g.add(box(4,.7,1.35,mats.darkWood,0,.55,d/2-4));
+        g.add(cylinder(.4,.4,1.2,18,mats.stone, -3.8,.7,d/2-5.2));
+        g.add(cylinder(.4,.4,1.2,18,mats.stone, 3.8,.7,d/2-5.2));
+        createShelf(g,-w/2+1.1,d/2-7,0);
+      } else if(type === 'guest') {
+        for(let i=0;i<8;i++) createBed(g, -w/2+4+(i%4)*5.4, -d/2+4+Math.floor(i/4)*7.2, (i%2)*Math.PI/2);
+        for(let i=0;i<5;i++) createTable(g, -w/2+4+i*4.6, d/2-4, .75);
+        createShelf(g,w/2-1.1,0,0);
+      } else if(type === 'workshop') {
+        for(let i=0;i<8;i++) createCrate(g, rand(-w/2+2,w/2-2), rand(-d/2+2,d/2-2), rand(.65,1.25));
+        createShelf(g,-w/2+1,0,0); createShelf(g,w/2-1,3,Math.PI);
+        createTable(g,0,0,1.25);
+      } else if(type === 'dining') {
+        for(let i=0;i<4;i++) createTable(g, -w/2+5+i*5.2, -1, 1.2);
+        for(let i=0;i<4;i++) createBench(g, -w/2+5+i*5.2, -2.2, 0, .8);
+        for(let i=0;i<4;i++) createBench(g, -w/2+5+i*5.2, .2, Math.PI, .8);
+        createShelf(g,w/2-1.1,d/2-3,0);
+      } else {
+        createTable(g,0,0,1); createShelf(g,w/2-1,0,0); createCrate(g,-2,2,.9);
+      }
+
+      let r;
+      if(roof === 'gable') r = makeGabledRoof(w+1.25,d+1.25,2.6,mats.roof);
+      else r = box(w+1.1,.45,d+1.1,mats.roof,0,0,0);
+      r.position.set(x,h+.65,z);
+      r.rotation.y = rot;
+      r.userData.roof = true;
+      roofGroup.add(r);
+
+      addRoomLabel(name, x, h+3.4, z);
+      markers.push({ name, x, z });
+      return g;
+    }
+
+    // Main complex: church, tower, guesthouse, dining block, workshop, boathouse, outbuildings
+    const church = createExplorableBuilding({
+      name:'Main Church / Nave', x:-18, z:9, w:13, d:38, h:6.4, rot:-0.08, type:'church',
+      partitions:[{x1:-5.5,z1:9,x2:5.5,z2:9},{x1:-4.6,z1:13,x2:-4.6,z2:18},{x1:4.6,z1:13,x2:4.6,z2:18}]
+    });
+
+    createExplorableBuilding({ name:'Vestry House', x:-39, z:2, w:12, d:13, h:4.5, rot:.05, type:'generic',
+      partitions:[{x1:0,z1:-6,x2:0,z2:6},{x1:-6,z1:0,x2:6,z2:0}] });
+
+    createExplorableBuilding({ name:'Guest Rooms', x:30, z:3, w:31, d:20, h:5.2, rot:.04, type:'guest',
+      partitions:[{x1:-8,z1:-10,x2:-8,z2:10},{x1:0,z1:-10,x2:0,z2:10},{x1:8,z1:-10,x2:8,z2:10},{x1:-15,z1:0,x2:15,z2:0}] });
+
+    createExplorableBuilding({ name:'Dining Hall / Kitchen', x:15, z:-18, w:26, d:16, h:5.1, rot:-.02, type:'dining',
+      partitions:[{x1:-7,z1:-8,x2:-7,z2:8},{x1:6,z1:-8,x2:6,z2:8},{x1:-13,z1:1,x2:13,z2:1}] });
+
+    createExplorableBuilding({ name:'Workshop / Storage', x:-19, z:-34, w:25, d:11, h:4.2, rot:.03, type:'workshop',
+      partitions:[{x1:-2,z1:-5.5,x2:-2,z2:5.5},{x1:-12.5,z1:0,x2:12.5,z2:0}] });
+
+    createExplorableBuilding({ name:'Caretaker Cottage', x:47, z:15, w:18, d:15, h:4.6, rot:.08, type:'guest',
+      partitions:[{x1:0,z1:-7.5,x2:0,z2:7.5},{x1:-9,z1:0,x2:9,z2:0}] });
+
+    createExplorableBuilding({ name:'Gate House', x:-51, z:24, w:13, d:10, h:4.2, rot:-.25, type:'generic',
+      partitions:[{x1:0,z1:-5,x2:0,z2:5}] });
+
+    // Bell tower with visible stacked interiors
+    function createTower() {
+      const g = new THREE.Group();
+      g.position.set(0,0,18); g.rotation.y = -.02; world.add(g);
+      const w=8.5, d=8.5, levelH=6, levels=5;
+      g.add(box(w,.35,d,mats.stone,0,.18,0));
+      for(let l=0;l<levels;l++){
+        const y = .35 + l*levelH;
+        g.add(wall(w,.32,d,0,y+.1,0,mats.wood));
+        // Three walls only: cutaway face exposes rooms and stairs
+        g.add(wall(w,levelH,.36,0,y+levelH/2,-d/2,mats.stucco));
+        g.add(wall(.36,levelH,d,-w/2,y+levelH/2,0,mats.stucco));
+        g.add(wall(.36,levelH,d,w/2,y+levelH/2,0,mats.stucco));
+        if(l%2===0) createTable(g,0,1.4,.65); else createCrate(g,-1.5,1.2,.75);
+        createWindow(g,0,y+3.2,-d/2-.25,1.2,1.35,'front');
+        // Stair blocks spiral
+        for(let s=0;s<9;s++){
+          const ang = s*.55 + l*.5;
+          const st = box(1.1,.18,.65,mats.wood,Math.cos(ang)*2.4,y+.55+s*.42,Math.sin(ang)*2.4);
+          st.rotation.y = -ang; g.add(st);
+        }
+      }
+      // belfry and spire
+      g.add(box(w+1,2.2,d+1,mats.darkWood,0,levels*levelH+1.5,0));
+      const bell = cylinder(.9,.55,1.3,24,new THREE.MeshStandardMaterial({color:0x997744,metalness:.45,roughness:.4}),0,levels*levelH+1.3,0);
+      bell.rotation.z = .08; g.add(bell);
+      const spire = new THREE.Mesh(new THREE.ConeGeometry(5.6,13,6), mats.roofSolid);
+      spire.position.set(0,levels*levelH+9,0); spire.castShadow=true; g.add(spire);
+      addRoomLabel('Bell Tower / Lookout',0,39,18);
+      markers.push({name:'Bell Tower / Lookout', x:0,z:18});
+      return g;
+    }
+    createTower();
+
+
+    function createLongBridge() {
+      const g = new THREE.Group();
+      world.add(g);
+      const start = new THREE.Vector3(70,0,-12);
+      const end = new THREE.Vector3(112,0,-9);
+      const dir = new THREE.Vector3().subVectors(end, start);
+      const len = dir.length();
+      const ang = Math.atan2(dir.x, dir.z);
+      const mid = start.clone().add(end).multiplyScalar(.5);
+      const deck = box(6.2,.42,len,mats.wood,mid.x,.9,mid.z);
+      deck.rotation.y = ang; g.add(deck);
+      for(let i=0;i<Math.floor(len/1.6);i++) {
+        const zOff = -len/2 + i*1.6;
+        const plank = box(6.6,.12,.18,mats.darkWood,mid.x,.96,mid.z);
+        plank.rotation.y = ang;
+        plank.position.x += Math.sin(ang) * zOff;
+        plank.position.z += Math.cos(ang) * zOff;
+        g.add(plank);
+      }
+      for(let side of [-1,1]) {
+        const rail = box(.24,1.0,len,mats.trim,mid.x + Math.cos(ang)*side*2.85, 1.4, mid.z - Math.sin(ang)*side*2.85);
+        rail.rotation.y = ang;
+        g.add(rail);
+        for(let i=0;i<9;i++) {
+          const t = i/8;
+          const x = THREE.MathUtils.lerp(start.x, end.x, t) + Math.cos(ang)*side*2.6;
+          const z = THREE.MathUtils.lerp(start.z, end.z, t) - Math.sin(ang)*side*2.6;
+          g.add(cylinder(.14,.17,1.25,8,mats.darkWood,x,.62,z));
+        }
+      }
+      addRoomLabel('Grand Bridge', 91, 4.8, -10);
+      markers.push({ name:'Grand Bridge', x:91, z:-10 });
+      return g;
+    }
+    createLongBridge();
+
+    function createHarborCity() {
+      createExplorableBuilding({ name:'Bridge Gate', x:123, z:-8, w:16, d:12, h:4.6, rot:0, type:'generic',
+        partitions:[{x1:0,z1:-6,x2:0,z2:6},{x1:-8,z1:0,x2:8,z2:0}] });
+
+      createExplorableBuilding({ name:'Market Hall', x:149, z:10, w:32, d:18, h:5.4, rot:0.02, type:'dining',
+        partitions:[{x1:-8,z1:-9,x2:-8,z2:9},{x1:8,z1:-9,x2:8,z2:9},{x1:-16,z1:1,x2:16,z2:1}] });
+
+      createExplorableBuilding({ name:'Harbor Inn', x:181, z:12, w:26, d:18, h:5.2, rot:-0.03, type:'guest',
+        partitions:[{x1:-6,z1:-9,x2:-6,z2:9},{x1:6,z1:-9,x2:6,z2:9},{x1:-13,z1:0,x2:13,z2:0}] });
+
+      createExplorableBuilding({ name:'Barracks / Housing', x:146, z:-21, w:28, d:16, h:5.1, rot:0, type:'guest',
+        partitions:[{x1:-7,z1:-8,x2:-7,z2:8},{x1:0,z1:-8,x2:0,z2:8},{x1:7,z1:-8,x2:7,z2:8}] });
+
+      createExplorableBuilding({ name:'Warehouse Block', x:180, z:-21, w:34, d:16, h:4.8, rot:0.03, type:'workshop',
+        partitions:[{x1:-9,z1:-8,x2:-9,z2:8},{x1:0,z1:-8,x2:0,z2:8},{x1:9,z1:-8,x2:9,z2:8}] });
+
+      createExplorableBuilding({ name:'Clock Tower Annex', x:123, z:28, w:16, d:14, h:5.0, rot:0, type:'generic',
+        partitions:[{x1:0,z1:-7,x2:0,z2:7},{x1:-8,z1:0,x2:8,z2:0}] });
+
+      createExplorableBuilding({ name:'Council Hall', x:173, z:37, w:30, d:18, h:5.8, rot:0.01, type:'generic',
+        partitions:[{x1:-7,z1:-9,x2:-7,z2:9},{x1:7,z1:-9,x2:7,z2:9},{x1:-15,z1:0,x2:15,z2:0}] });
+
+      // Harbor roads, boulevards, and big civic open spaces
+      createRoadWithSidewalks(168, 0, 170, 11, 'h');
+      createRoadWithSidewalks(168, 46, 150, 10, 'h');
+      createRoadWithSidewalks(172, -44, 165, 10, 'h');
+      createRoadWithSidewalks(118, 10, 11, 118, 'v');
+      createRoadWithSidewalks(228, 12, 11, 128, 'v');
+      createRoadWithSidewalks(276, 4, 11, 140, 'v');
+
+      createExplorableBuilding({ name:'Harbor Offices', x:228, z:42, w:34, d:18, h:5.2, rot:0, type:'generic',
+        partitions:[{x1:-8,z1:-9,x2:-8,z2:9},{x1:8,z1:-9,x2:8,z2:9},{x1:-17,z1:0,x2:17,z2:0}] });
+      createExplorableBuilding({ name:'Waterfront Market', x:233, z:-34, w:36, d:18, h:5.0, rot:0, type:'dining',
+        partitions:[{x1:-9,z1:-9,x2:-9,z2:9},{x1:9,z1:-9,x2:9,z2:9},{x1:-18,z1:0,x2:18,z2:0}] });
+      createExplorableBuilding({ name:'Harbor Residences', x:270, z:8, w:28, d:18, h:5.2, rot:0, type:'guest',
+        partitions:[{x1:-7,z1:-9,x2:-7,z2:9},{x1:0,z1:-9,x2:0,z2:9},{x1:7,z1:-9,x2:7,z2:9}] });
+
+      const civicPlaza = box(120,.18,54,mats.path,186,.1,8); civicPlaza.receiveShadow = true; world.add(civicPlaza);
+      const waterfrontEsplanade = box(86,.18,34,mats.path,238,.1,-54); waterfrontEsplanade.receiveShadow = true; world.add(waterfrontEsplanade);
+      addRoomLabel('Harbor Civic Green', 186, 5.2, 8);
+      markers.push({ name:'Harbor Civic Green', x:186, z:8 });
+
+      // Plaza
+      const plaza = box(64,.18,28,mats.path,155,.1,9);
+      plaza.receiveShadow = true; world.add(plaza);
+      const plaza2 = box(58,.18,26,mats.path,170,.1,-19);
+      plaza2.receiveShadow = true; world.add(plaza2);
+      const fountain = new THREE.Group(); fountain.position.set(156,0,9); world.add(fountain);
+      fountain.add(cylinder(2.4,2.4,.45,36,mats.stone,0,.23,0));
+      fountain.add(cylinder(1.0,.75,1.4,24,mats.stone,0,.95,0));
+      addRoomLabel('Harbor City Plaza', 156, 5.2, 9);
+      markers.push({ name:'Harbor City Plaza', x:156, z:9 });
+
+      // Perimeter docks
+      makeDock(206,-22,0.42,22);
+      makeDock(208,18,0.18,16);
+      makeBoat(211,-27,0.4,1.15,true);
+      makeBoat(202,-26,0.25,1.0,false);
+      makeBoat(212,13,0.15,0.95,false);
+
+      // Lamps for the city district
+      [[118,-8],[133,-8],[149,10],[163,10],[181,12],[145,-21],[181,-21],[123,28],[173,37],[156,9],[196,0]].forEach(p=>addLamp(p[0],p[1]));
+
+      // Extra vegetation around the second island edges, keeping the central city open
+      const extraNoTreeZones = [
+        [123,-8,20,16],[149,10,36,22],[181,12,30,22],[146,-21,32,20],[180,-21,38,20],[123,28,20,18],[173,37,34,22],[156,9,40,26],[170,-19,30,24]
+      ];
+      function inExtraNoTree(x,z) { return extraNoTreeZones.some(n => Math.abs(x-n[0])<n[2]/2 && Math.abs(z-n[1])<n[3]/2); }
+      for(let i=0;i<120;i++) {
+        let x,z,tries=0;
+        do { x=rand(58,304); z=rand(-100,122); tries++; } while((!pointInPoly(x,z,secondCityPts) || inExtraNoTree(x,z)) && tries < 70);
+        if(tries<70) makeTree(x,z,rand(.65,1.4));
+      }
+      for(let i=0;i<80;i++) {
+        const x = rand(58,304), z = rand(-100,122);
+        if(!pointInPoly(x,z,secondCityPts) || inExtraNoTree(x,z)) continue;
+        const b = new THREE.Mesh(new THREE.IcosahedronGeometry(rand(.35,.95),1), new THREE.MeshStandardMaterial({color:0x315a2c,roughness:.94}));
+        b.position.set(x,rand(.22,.55),z); b.scale.y = rand(.45,.9); b.castShadow=b.receiveShadow=true; world.add(b);
+      }
+    }
+    createHarborCity();
+
+
+    function makeNeonMaterial(hex, intensity=1.8) {
+      return new THREE.MeshStandardMaterial({ color:hex, emissive:hex, emissiveIntensity:intensity, roughness:.35, metalness:.05 });
+    }
+
+    function createNeoTokyoBridge() {
+      const neonCyan = makeNeonMaterial(0x00e5ff, 2.2);
+      const neonPink = makeNeonMaterial(0xff2bd6, 1.9);
+      const asphalt = new THREE.MeshStandardMaterial({ color:0x151a24, roughness:.82 });
+      const g = new THREE.Group();
+      world.add(g);
+      const start = new THREE.Vector3(222,0,-4);
+      const end = new THREE.Vector3(267,0,-2);
+      const dir = new THREE.Vector3().subVectors(end, start);
+      const len = dir.length();
+      const ang = Math.atan2(dir.x, dir.z);
+      const mid = start.clone().add(end).multiplyScalar(.5);
+
+      const deck = box(8.2,.5,len,asphalt,mid.x,1.05,mid.z);
+      deck.rotation.y = ang; g.add(deck);
+      const centerLine = box(.28,.06,len-4,neonCyan,mid.x,1.35,mid.z);
+      centerLine.rotation.y = ang; g.add(centerLine);
+
+      for(let side of [-1,1]) {
+        const rail = box(.22,1.05,len,neonCyan,mid.x + Math.cos(ang)*side*3.9, 1.65, mid.z - Math.sin(ang)*side*3.9);
+        rail.rotation.y = ang; g.add(rail);
+        const lowRail = box(.16,.18,len,neonPink,mid.x + Math.cos(ang)*side*3.35, 1.12, mid.z - Math.sin(ang)*side*3.35);
+        lowRail.rotation.y = ang; g.add(lowRail);
+        for(let i=0;i<10;i++) {
+          const t = i/9;
+          const x = THREE.MathUtils.lerp(start.x, end.x, t) + Math.cos(ang)*side*3.65;
+          const z = THREE.MathUtils.lerp(start.z, end.z, t) - Math.sin(ang)*side*3.65;
+          g.add(cylinder(.16,.2,1.4,8,mats.metal,x,.7,z));
+          const glow = new THREE.PointLight(side > 0 ? 0x00e5ff : 0xff2bd6, .85, 14, 2);
+          glow.position.set(x,2.0,z); scene.add(glow);
+        }
+      }
+
+      // Two cable towers to make the second bridge feel different from the wooden harbor bridge.
+      [232,258].forEach((x,i)=>{
+        const tower = box(1.3,12,1.3,mats.metal,x,6.5,-3 + i*.5); g.add(tower);
+        const cap = box(7,.55,1.1,neonCyan,x,12.6,-3 + i*.5); g.add(cap);
+        for(let side of [-1,1]) {
+          const cableGeo = new THREE.CylinderGeometry(.045,.045,18,8);
+          const cable = new THREE.Mesh(cableGeo, neonPink);
+          cable.position.set(x + side*2.4,7.0,-3 + i*.5);
+          cable.rotation.z = side * .42;
+          cable.castShadow = false;
+          g.add(cable);
+        }
+      });
+      addRoomLabel('Neon Bridge to Neo Tokyo', 244, 7.2, -3);
+      markers.push({ name:'Neon Bridge to Neo Tokyo', x:244, z:-3 });
+    }
+    createNeoTokyoBridge();
+
+    function createNeoSign(text, x,y,z, w=5, h=1.3, color=0xff2bd6, rot=0) {
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = 160;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = 'rgba(4,5,12,.82)'; ctx.fillRect(0,0,c.width,c.height);
+      ctx.strokeStyle = '#' + color.toString(16).padStart(6,'0'); ctx.lineWidth = 8; ctx.strokeRect(10,10,492,140);
+      ctx.shadowColor = '#' + color.toString(16).padStart(6,'0'); ctx.shadowBlur = 22;
+      ctx.fillStyle = '#ffffff'; ctx.font = 'bold 48px Inter, Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(text, 256, 82);
+      const tex = new THREE.CanvasTexture(c);
+      const mat = new THREE.MeshStandardMaterial({ map:tex, emissive:color, emissiveIntensity:.9, roughness:.25 });
+      const sign = box(w,h,.12,mat,x,y,z);
+      sign.rotation.y = rot;
+      world.add(sign);
+      return sign;
+    }
+
+    function createSkyscraper(name, x,z,w,d,h, color=0x20283a, neon=0x00e5ff) {
+      const g = new THREE.Group();
+      g.position.set(x,0,z); world.add(g);
+      const glassMat = new THREE.MeshStandardMaterial({ color, roughness:.42, metalness:.18 });
+      const body = box(w,h,d,glassMat,0,h/2,0); g.add(body); addCollider(body);
+      const trimMat = makeNeonMaterial(neon,1.15);
+      // Window grid strips
+      for(let yy=3; yy<h-2; yy+=3.2) {
+        const front = box(w*.82,.08,.08,trimMat,0,yy,-d/2-.07); g.add(front);
+        const back = box(w*.82,.08,.08,trimMat,0,yy,d/2+.07); g.add(back);
+      }
+      for(let xx=-w/2+2; xx<w/2-1; xx+=3.2) {
+        const a = box(.08,h*.82,.08,trimMat,xx,h*.48,-d/2-.08); g.add(a);
+        const b = box(.08,h*.82,.08,trimMat,xx,h*.48,d/2+.08); g.add(b);
+      }
+      const roofPad = cylinder(Math.min(w,d)*.28, Math.min(w,d)*.28, .22, 36, new THREE.MeshStandardMaterial({ color:0x1b1f2c, roughness:.68 }),0,h+.18,0);
+      g.add(roofPad);
+      const roofDeck = box(w-1.2, .18, d-1.2, new THREE.MeshStandardMaterial({ color:0x161c27, roughness:.82 }), 0, h+.12, 0); g.add(roofDeck);
+      addWalkSurface(x, z, w-1.2, d-1.2, h+.21);
+      const antenna = cylinder(.08,.08,5,8,trimMat,0,h+2.7,0); g.add(antenna);
+      addRoomLabel(name, x, h+4.5, z);
+      markers.push({name, x, z});
+      return g;
+    }
+
+    function createLowModernBlock(name, x,z,w,d,h, neon=0xff2bd6) {
+      const g = new THREE.Group(); g.position.set(x,0,z); world.add(g);
+      const concrete = new THREE.MeshStandardMaterial({ color:0x252b35, roughness:.8 });
+      const glass = new THREE.MeshStandardMaterial({ color:0x122134, roughness:.2, metalness:.1, transparent:true, opacity:.9 });
+      const base = box(w,h,d,concrete,0,h/2,0); g.add(base); addCollider(base);
+      for(let i=0;i<Math.floor(w/3);i++) {
+        const xx = -w/2+2+i*3;
+        g.add(box(1.2,1.3,.12,glass,xx,2.2,-d/2-.08));
+        g.add(box(1.2,1.3,.12,glass,xx,h-1.6,-d/2-.08));
+      }
+      g.add(box(w+.8,.45,d+.8,new THREE.MeshStandardMaterial({color:0x10131b,roughness:.7}),0,h+.22,0));
+      const roofDeck = box(w-.8,.18,d-.8,new THREE.MeshStandardMaterial({color:0x171b24,roughness:.78}),0,h+.26,0); g.add(roofDeck);
+      addWalkSurface(x, z, w-.8, d-.8, h+.35);
+      createNeoSign(name.split(' ')[0].toUpperCase(), x, h+2.2, z-d/2-.2, Math.min(7,w*.55), 1.4, neon, 0);
+      addRoomLabel(name, x, h+4, z);
+      markers.push({name, x, z});
+      return g;
+    }
+
+    function createCapsuleStalls(x,z,count=7) {
+      const neonYellow = makeNeonMaterial(0xffe45c,1.55);
+      const neonBlue = makeNeonMaterial(0x2bd9ff,1.55);
+      for(let i=0;i<count;i++) {
+        const g = new THREE.Group(); g.position.set(x + i*3.2,0,z + (i%2)*.35); world.add(g);
+        g.add(box(2.25,2.2,2.1,new THREE.MeshStandardMaterial({color:0x20242e,roughness:.65}),0,1.1,0));
+        g.add(box(1.7,1.2,.15,i%2?neonYellow:neonBlue,0,1.25,-1.1));
+        g.add(box(.45,.75,.12,new THREE.MeshStandardMaterial({color:0x10141c,roughness:.6}),.55,.78,-1.18));
+      }
+    }
+
+    function createElevatedRail() {
+      const railMat = new THREE.MeshStandardMaterial({color:0x555b63,roughness:.45,metalness:.35});
+      const neon = makeNeonMaterial(0x00e5ff,1.7);
+      const y=5.2;
+      const segments = [[282,-38,405,-38],[405,-38,405,36],[405,36,310,36]];
+      segments.forEach(s=>{
+        const [x1,z1,x2,z2] = s;
+        const a = new THREE.Vector3(x1,0,z1), b = new THREE.Vector3(x2,0,z2);
+        const mid = a.clone().add(b).multiplyScalar(.5);
+        const len = a.distanceTo(b);
+        const track = box(3.2,.3,len,railMat,mid.x,y,mid.z); track.rotation.y = Math.atan2(b.x-a.x,b.z-a.z); world.add(track);
+        const glow = box(.2,.1,len,neon,mid.x,y+.28,mid.z); glow.rotation.y = track.rotation.y; world.add(glow);
+        for(let i=0;i<Math.floor(len/12);i++) {
+          const t = i/(Math.floor(len/12));
+          const px = THREE.MathUtils.lerp(x1,x2,t); const pz = THREE.MathUtils.lerp(z1,z2,t);
+          world.add(cylinder(.25,.32,y,10,mats.metal,px,y/2,pz));
+        }
+      });
+      const train = new THREE.Group(); train.position.set(346,y+1.0,-38); world.add(train);
+      for(let i=0;i<3;i++) {
+        train.add(box(8,2.0,2.5,new THREE.MeshStandardMaterial({color:0xdde8f2,roughness:.4,metalness:.12}),-9+i*9,0,0));
+        train.add(box(6.5,.7,.1,neon,-9+i*9,.2,-1.31));
+      }
+      addRoomLabel('Elevated Rail Line', 352, 9.5, -38);
+      markers.push({name:'Elevated Rail Line',x:352,z:-38});
+    }
+
+
+    function createStairAccess(name, x, z, width, steps, stepH, stepD, dir='x+', color=0x2a303b) {
+      const g = new THREE.Group();
+      world.add(g);
+      const stepMat = new THREE.MeshStandardMaterial({ color, roughness:.82 });
+      const railMat = new THREE.MeshStandardMaterial({ color:0x6e7a88, roughness:.55, metalness:.25 });
+      let rise = 0;
+      let run = 0;
+      for (let i=0; i<steps; i++) {
+        rise += stepH;
+        run += stepD;
+        let sx = x, sz = z;
+        if (dir === 'x+') sx = x + run;
+        if (dir === 'x-') sx = x - run;
+        if (dir === 'z+') sz = z + run;
+        if (dir === 'z-') sz = z - run;
+        const step = box(width, stepH, stepD, stepMat, sx, rise - stepH/2, sz);
+        g.add(step);
+        addWalkSurface(sx, sz, width, stepD, rise);
+      }
+      const totalRun = steps * stepD;
+      let platX = x, platZ = z;
+      if (dir === 'x+') platX = x + totalRun + width*.25;
+      if (dir === 'x-') platX = x - totalRun - width*.25;
+      if (dir === 'z+') platZ = z + totalRun + width*.25;
+      if (dir === 'z-') platZ = z - totalRun - width*.25;
+      const platform = box(width + 2.2, .18, width + 2.2, stepMat, platX, rise + .09, platZ);
+      g.add(platform);
+      addWalkSurface(platX, platZ, width + 2.2, width + 2.2, rise + .18);
+
+      // simple rails
+      if (dir === 'x+' || dir === 'x-') {
+        const sign = dir === 'x+' ? 1 : -1;
+        const rail1 = box(totalRun + 1.8, .12, .12, railMat, x + sign*(totalRun/2 + .9), rise + .9, z - width/2 - .15);
+        const rail2 = box(totalRun + 1.8, .12, .12, railMat, x + sign*(totalRun/2 + .9), rise + .9, z + width/2 + .15);
+        g.add(rail1, rail2);
+      } else {
+        const sign = dir === 'z+' ? 1 : -1;
+        const rail1 = box(.12, .12, totalRun + 1.8, railMat, x - width/2 - .15, rise + .9, z + sign*(totalRun/2 + .9));
+        const rail2 = box(.12, .12, totalRun + 1.8, railMat, x + width/2 + .15, rise + .9, z + sign*(totalRun/2 + .9));
+        g.add(rail1, rail2);
+      }
+
+      addRoomLabel(name, platX, rise + 3.0, platZ);
+      markers.push({ name, x: platX, z: platZ });
+      return { platformX: platX, platformZ: platZ, topY: rise + .18 };
+    }
+
+    function createRoadWithSidewalks(x, z, w, d, orientation='h') {
+      const asphalt = new THREE.MeshStandardMaterial({ color:0x060708, roughness:.94 });
+      const sidewalkMat = new THREE.MeshStandardMaterial({ color:0x7b8087, roughness:.98 });
+      const curbMat = new THREE.MeshStandardMaterial({ color:0xb4b8bf, roughness:.96 });
+      const edgeMat = new THREE.MeshStandardMaterial({ color:0xf0f0f0, emissive:0xffffff, emissiveIntensity:.08, roughness:.42 });
+      const yellowMat = new THREE.MeshStandardMaterial({ color:0xf7c62f, emissive:0xe2b31f, emissiveIntensity:.18, roughness:.45 });
+
+      const road = box(w,.16,d,asphalt,x,.12,z);
+      road.receiveShadow = true;
+      world.add(road);
+      addWalkSurface(x, z, w, d, .16);
+
+      if (orientation === 'h') {
+        const sw1 = box(w,.12,4.2,sidewalkMat,x,.22,z - d/2 - 2.15);
+        const sw2 = box(w,.12,4.2,sidewalkMat,x,.22,z + d/2 + 2.15);
+        const curb1 = box(w,.08,.32,curbMat,x,.28,z - d/2 - .10);
+        const curb2 = box(w,.08,.32,curbMat,x,.28,z + d/2 + .10);
+        world.add(sw1, sw2, curb1, curb2);
+        addWalkSurface(x, z - d/2 - 2.15, w, 4.2, .28);
+        addWalkSurface(x, z + d/2 + 2.15, w, 4.2, .28);
+        world.add(box(w-4,.04,.26,yellowMat,x,.23,z));
+        world.add(box(w-4,.03,.14,edgeMat,x,.23,z - d/2 + .75));
+        world.add(box(w-4,.03,.14,edgeMat,x,.23,z + d/2 - .75));
+      } else {
+        const sw1 = box(4.2,.12,d,sidewalkMat,x - w/2 - 2.15,.22,z);
+        const sw2 = box(4.2,.12,d,sidewalkMat,x + w/2 + 2.15,.22,z);
+        const curb1 = box(.32,.08,d,curbMat,x - w/2 - .10,.28,z);
+        const curb2 = box(.32,.08,d,curbMat,x + w/2 + .10,.28,z);
+        world.add(sw1, sw2, curb1, curb2);
+        addWalkSurface(x - w/2 - 2.15, z, 4.2, d, .28);
+        addWalkSurface(x + w/2 + 2.15, z, 4.2, d, .28);
+        world.add(box(.26,.04,d-4,yellowMat,x,.23,z));
+        world.add(box(.14,.03,d-4,edgeMat,x - w/2 + .75,.23,z));
+        world.add(box(.14,.03,d-4,edgeMat,x + w/2 - .75,.23,z));
+      }
+    }
+
+    function addWetSurface(x, z, w, d, y=.29, opacity=.18) {
+      const wet = new THREE.Mesh(
+        new THREE.PlaneGeometry(w, d),
+        new THREE.MeshStandardMaterial({ color:0x9bb9d1, roughness:.08, metalness:.22, transparent:true, opacity })
+      );
+      wet.rotation.x = -Math.PI/2;
+      wet.position.set(x, y, z);
+      world.add(wet);
+      return wet;
+    }
+
+    function createTrafficLight(x, z, rot=0) {
+      const g = new THREE.Group();
+      g.position.set(x,0,z);
+      g.rotation.y = rot;
+      world.add(g);
+      g.add(cylinder(.09,.12,4.4,8,new THREE.MeshStandardMaterial({color:0x48515b,roughness:.7,metalness:.18}),0,2.2,0));
+      g.add(box(.28,1.0,.28,new THREE.MeshStandardMaterial({color:0x14181f,roughness:.7}),0,4.15,0));
+      const red = new THREE.Mesh(new THREE.SphereGeometry(.07,12,12), makeNeonMaterial(0xff4d5e,1.4)); red.position.set(0,4.45,.14);
+      const yellow = new THREE.Mesh(new THREE.SphereGeometry(.07,12,12), makeNeonMaterial(0xffd65c,1.1)); yellow.position.set(0,4.16,.14);
+      const green = new THREE.Mesh(new THREE.SphereGeometry(.07,12,12), makeNeonMaterial(0x57ff87,1.3)); green.position.set(0,3.87,.14);
+      g.add(red,yellow,green);
+      return g;
+    }
+
+    function createStreetSign(text, x, z, rot=0) {
+      const poleMat = new THREE.MeshStandardMaterial({color:0x68727b,roughness:.65,metalness:.24});
+      world.add(cylinder(.05,.06,2.9,8,poleMat,x,1.45,z));
+      const c = document.createElement('canvas');
+      c.width = 256; c.height = 96;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#0d5fd3'; ctx.fillRect(0,0,c.width,c.height);
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 6; ctx.strokeRect(8,8,c.width-16,c.height-16);
+      ctx.fillStyle = '#ffffff'; ctx.font = 'bold 28px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(text, c.width/2, c.height/2);
+      const tex = new THREE.CanvasTexture(c);
+      const mat = new THREE.MeshStandardMaterial({map:tex, roughness:.5});
+      const sign = box(2.2,.7,.08,mat,x,2.55,z);
+      sign.rotation.y = rot;
+      world.add(sign);
+      return sign;
+    }
+
+    function createSimpleCar(x,z,rot=0,color=0xff2bd6,scale=1) {
+      const g = new THREE.Group();
+      g.position.set(x,.2,z);
+      g.rotation.y = rot;
+      g.scale.setScalar(scale);
+      world.add(g);
+      const bodyMat = new THREE.MeshStandardMaterial({ color, roughness:.38, metalness:.28 });
+      const glassMat = new THREE.MeshStandardMaterial({ color:0xbad8ff, roughness:.08, metalness:.12, transparent:true, opacity:.82 });
+      g.add(box(3.8,.9,1.9,bodyMat,0,.55,0));
+      g.add(box(2.2,.72,1.55,glassMat,0,.98,-.02));
+      g.add(box(.9,.22,1.95,new THREE.MeshStandardMaterial({color:0x101317,roughness:.6}),1.25,.45,0));
+      g.add(box(.9,.22,1.95,new THREE.MeshStandardMaterial({color:0x101317,roughness:.6}),-1.25,.45,0));
+      [[-1.2,-.9],[1.2,-.9],[-1.2,.9],[1.2,.9]].forEach(p=>{
+        const wheel = new THREE.Mesh(new THREE.CylinderGeometry(.36,.36,.28,16), new THREE.MeshStandardMaterial({color:0x0a0a0d,roughness:.8}));
+        wheel.rotation.z = Math.PI/2;
+        wheel.position.set(p[0],.32,p[1]);
+        g.add(wheel);
+      });
+      g.add(box(.55,.12,.12, makeNeonMaterial(0xffffff,.75), 1.92, .62, -.52));
+      g.add(box(.55,.12,.12, makeNeonMaterial(0xffffff,.75), 1.92, .62, .52));
+      g.add(box(.42,.12,.12, makeNeonMaterial(0xff4d5e,.85), -1.92, .62, -.52));
+      g.add(box(.42,.12,.12, makeNeonMaterial(0xff4d5e,.85), -1.92, .62, .52));
+      return g;
+    }
+
+    function createShopFront(name, x,z,w=10,color=0xff2bd6) {
+      const g = new THREE.Group();
+      g.position.set(x,0,z);
+      world.add(g);
+      const faceMat = new THREE.MeshStandardMaterial({color:0x202633, roughness:.72});
+      const glass = new THREE.MeshStandardMaterial({color:0x9ec8ff, roughness:.08, metalness:.08, transparent:true, opacity:.7});
+      g.add(box(w,4.8,1.4,faceMat,0,2.4,0));
+      const paneCount = Math.max(2, Math.floor(w/2.4));
+      for(let i=0;i<paneCount;i++) {
+        const px = -w/2 + 1.2 + i*(w-2.4)/Math.max(1,paneCount-1);
+        g.add(box(1.15,2.0,.1,glass,px,1.65,-.72));
+      }
+      g.add(box(1.4,2.4,.12,new THREE.MeshStandardMaterial({color:0x11161d,roughness:.65}),0,1.45,-.72));
+      g.add(box(w+.5,.5,1.6,new THREE.MeshStandardMaterial({color:0x151a22,roughness:.65}),0,4.95,0));
+      const awning = box(w+.6,.24,1.8, makeNeonMaterial(color,.9), 0, 4.25, -.28);
+      g.add(awning);
+      createNeoSign(name.toUpperCase(), x, 5.85, z-.82, Math.min(8,w*.8), 1.05, color, 0);
+      return g;
+    }
+
+    function createNeoTokyoDistrict() {
+      // Main road grid with sidewalks - expanded for a much larger city footprint
+      createRoadWithSidewalks(352, 0, 220, 12, 'h');
+      createRoadWithSidewalks(380, -42, 12, 112, 'v');
+      createRoadWithSidewalks(332, 38, 180, 10, 'h');
+      createRoadWithSidewalks(332, -68, 180, 10, 'h');
+      createRoadWithSidewalks(460, 26, 12, 122, 'v');
+      createRoadWithSidewalks(280, -18, 12, 96, 'v');
+      createRoadWithSidewalks(532, 2, 12, 150, 'v');
+      createRoadWithSidewalks(400, 84, 240, 10, 'h');
+      createRoadWithSidewalks(410, -108, 250, 10, 'h');
+      createRoadWithSidewalks(498, -42, 130, 10, 'h');
+      createRoadWithSidewalks(250, 18, 110, 10, 'h');
+
+      // Crosswalks
+      const crossingMat = makeNeonMaterial(0xffffff,.45);
+      for(let i=0;i<10;i++) world.add(box(1.1,.05,6,crossingMat,295+i*2.4,.25,4));
+      for(let i=0;i<10;i++) world.add(box(1.1,.05,6,crossingMat,348+i*2.4,.25,-4));
+      for(let i=0;i<9;i++) world.add(box(6,.05,1.0,crossingMat,362,.25,-18+i*2.4));
+      for(let i=0;i<9;i++) world.add(box(6,.05,1.0,crossingMat,392,.25,-2+i*2.4));
+
+      // Open public plaza / breathing space
+      const plazaMat = new THREE.MeshStandardMaterial({ color:0x18202a, roughness:.9 });
+      const plaza = box(210,.14,78,plazaMat,360,.12,8); plaza.receiveShadow = true; world.add(plaza);
+      addWalkSurface(360, 8, 210, 78, .14);
+      for(let i=0;i<18;i++) {
+        const bench = box(2.8,.25,.8,new THREE.MeshStandardMaterial({color:0x444f5e,roughness:.8}),275 + i*10,.4,-18 + (i%2)*34);
+        world.add(bench);
+      }
+      for(let i=0;i<14;i++) {
+        const plan = box(4.5,.55,4.5,new THREE.MeshStandardMaterial({color:0x28303b,roughness:.88}),280 + i*13,.3,18 - (i%3)*18); world.add(plan);
+        const plant = new THREE.Mesh(new THREE.IcosahedronGeometry(1.6,1), new THREE.MeshStandardMaterial({color:0x3d8247,roughness:.94}));
+        plant.position.set(280 + i*13, 1.9, 18 - (i%3)*18); plant.castShadow = plant.receiveShadow = true; world.add(plant);
+      }
+      addRoomLabel('Grand Open Plaza', 360, 5.6, 8);
+      markers.push({name:'Grand Open Plaza', x:360, z:8});
+
+      createSkyscraper('Neo Tower One', 306,-22,18,15,38,0x1b2435,0x00e5ff);
+      createSkyscraper('Shibuya Glass Tower', 350,-18,22,17,48,0x1a2130,0xff2bd6);
+      createSkyscraper('Akira Bank Tower', 388,-3,18,18,42,0x20273a,0xffe45c);
+      createSkyscraper('Sky Hotel', 318,35,20,16,34,0x232a38,0x57ff87);
+      createSkyscraper('Media Tower', 372,36,22,18,44,0x191f2d,0x9c5cff);
+
+      createLowModernBlock('Arcade Block', 288,16,20,14,7,0xff2bd6);
+      createLowModernBlock('Ramen Alley', 334,14,18,12,6,0xffe45c);
+      createLowModernBlock('Metro Station', 388,28,24,14,7,0x00e5ff);
+      createLowModernBlock('Tech Market', 302,-47,24,13,7,0x57ff87);
+      createLowModernBlock('Police Koban', 400,-31,13,11,5.5,0x2bd9ff);
+
+      createCapsuleStalls(312,7,7);
+      createCapsuleStalls(343,7,8);
+      createNeoSign('NEO TOKYO', 331, 8.5, -5.2, 12, 2.2, 0xff2bd6, 0);
+      createNeoSign('RAMEN', 337, 5.6, 7.6, 6, 1.5, 0xffe45c, Math.PI);
+      createNeoSign('ARCADE', 289, 6.4, 8.7, 7, 1.5, 0x00e5ff, 0);
+      createNeoSign('METRO', 388, 7.0, 20.7, 7, 1.5, 0x57ff87, 0);
+
+      // Alley cover and vending props
+      const awningPink = makeNeonMaterial(0xff2bd6,1.6);
+      const awningBlue = makeNeonMaterial(0x00e5ff,1.5);
+      for(let i=0;i<12;i++) {
+        const x = 309 + i*5.2;
+        const mat = i%2 ? awningPink : awningBlue;
+        const vend = box(1.4,2.5,.8,mat,x,1.25,2.9); world.add(vend);
+        const crate = box(1.2,.8,1.0,mats.metal,x+1.4,.4,3.4); world.add(crate);
+      }
+
+      createElevatedRail();
+
+      // Neon street lights
+      const neonColors = [0xff2bd6,0x00e5ff,0xffe45c,0x57ff87,0x9c5cff];
+      [[285,-2],[305,0],[326,0],[350,0],[372,0],[397,0],[326,-28],[326,28],[362,-31],[363,31],[292,42],[392,42]].forEach((p,i)=>{
+        const mat = makeNeonMaterial(neonColors[i%neonColors.length],1.7);
+        world.add(cylinder(.08,.1,3.2,8,mats.metal,p[0],1.6,p[1]));
+        const orb = new THREE.Mesh(new THREE.SphereGeometry(.32,16,10), mat); orb.position.set(p[0],3.35,p[1]); world.add(orb);
+        const light = new THREE.PointLight(neonColors[i%neonColors.length], .95, 18, 2); light.position.set(p[0],3.4,p[1]); scene.add(light);
+      });
+
+      // Exterior stairs / access paths to rooftops
+      createStairAccess('Tower One Stairs', 294, -22, 4.2, 20, 1.95, 1.35, 'x+');
+      createStairAccess('Arcade Roof Access', 278, 16, 3.6, 8, .9, 1.25, 'x+');
+      createStairAccess('Metro Roof Access', 376, 28, 3.8, 9, .82, 1.25, 'x+');
+      createStairAccess('Market Roof Access', 290, -47, 3.8, 9, .82, 1.25, 'x+');
+
+      // Wet roads and sidewalks for rainy neon reflections
+      [
+        [352,0,220,12,.18],[380,-42,12,112,.14],[332,38,180,10,.16],[332,-68,180,10,.16],
+        [460,26,12,122,.14],[280,-18,12,96,.12],[532,2,12,150,.12],[400,84,240,10,.12],
+        [410,-108,250,10,.12],[498,-42,130,10,.10],[250,18,110,10,.10],
+        [352,-8,220,4.0,.08],[352,8,220,4.0,.08],[400,89,240,4.0,.08],[410,-113,250,4.0,.08]
+      ].forEach(v=>addWetSurface(v[0],v[1],v[2],v[3],.30,v[4]));
+
+      // Traffic lights at intersections
+      [[300,-1,0],[300,9,Math.PI],[362,-9,Math.PI/2],[372,-9,-Math.PI/2],[392,7,Math.PI/2],[402,7,-Math.PI/2],[414,0,0],[414,-10,Math.PI]].forEach(t=>createTrafficLight(t[0],t[1],t[2]));
+
+      // Street signs
+      createStreetSign('AKIRA ST', 307, 12, 0);
+      createStreetSign('SHIBUYA AVE', 364, -38, Math.PI/2);
+      createStreetSign('NEON WAY', 400, 31, Math.PI/2);
+      createStreetSign('TOKYO PLAZA', 337, 50, 0);
+      createStreetSign('HARBOR LOOP', 458, -86, 0);
+      createStreetSign('CYBER EAST', 532, 58, Math.PI/2);
+
+      // Cars on roads
+      createSimpleCar(314,-1,0,0xff2bd6,1.0);
+      createSimpleCar(342,1,Math.PI,0x00e5ff,1.0);
+      createSimpleCar(378,-3,0,0xffe45c,.95);
+      createSimpleCar(362,-22,Math.PI/2,0x57ff87,.95);
+      createSimpleCar(362,16,-Math.PI/2,0x9c5cff,1.0);
+      createSimpleCar(414,-28,Math.PI/2,0xffffff,.9);
+      createSimpleCar(300,-28,-Math.PI/2,0xff6a3d,.92);
+
+      // Shopfront row along sidewalks
+      createShopFront('SUSHI', 286, 21, 10, 0x00e5ff);
+      createShopFront('ARCADE', 300, 21, 12, 0xff2bd6);
+      createShopFront('COFFEE', 315, 21, 11, 0xffe45c);
+      createShopFront('MANGA', 332, 21, 11, 0x57ff87);
+      createShopFront('TECH', 350, 52, 13, 0x9c5cff);
+      createShopFront('RAMEN', 371, 52, 11, 0xff2bd6);
+      createShopFront('MART', 394, 52, 11, 0x00e5ff);
+
+      // Rooftop and ground gameplay hints
+      addRoomLabel('Neo Tokyo District', 340, 14, 0);
+      markers.push({name:'Neo Tokyo District', x:340, z:0});
+    }
+    createNeoTokyoDistrict();
+
+    // Greenhouse/glass corridor
+    const glassBridge = new THREE.Group();
+    glassBridge.position.set(25,0,-8); world.add(glassBridge);
+    glassBridge.add(box(13,.25,5.5,mats.stone,0,.12,0));
+    glassBridge.add(box(12,3.2,.18,mats.glass,0,1.8,-2.75));
+    glassBridge.add(box(12,3.2,.18,mats.glass,0,1.8,2.75));
+    glassBridge.add(box(.18,3.2,5.5,mats.glass,-6,1.8,0));
+    glassBridge.add(box(.18,3.2,5.5,mats.glass,6,1.8,0));
+    const gr = makeGabledRoof(13.5,6,1.4,mats.glass); gr.position.set(25,3.45,-8); roofGroup.add(gr);
+    addRoomLabel('Glass Passage',25,5.8,-8);
+    markers.push({name:'Glass Passage',x:25,z:-8});
+
+    // Courtyard walls, fountain, garden, graves
+    function makeCourtyard() {
+      const y=.65;
+      [[-2,7,18,.55],[18,7,18,.55],[8,-2,.55,18],[8,16,.55,18]].forEach(v=>{
+        const m = box(v[2],1.05,v[3],mats.stone,v[0],y,v[1]); world.add(m); addCollider(m);
+      });
+      const fountain = new THREE.Group(); fountain.position.set(8,0,7); world.add(fountain);
+      fountain.add(cylinder(2.1,2.1,.45,40,mats.stone,0,.23,0));
+      fountain.add(cylinder(.9,.7,1.0,28,mats.stone,0,.85,0));
+      const waterBowl = new THREE.Mesh(new THREE.CircleGeometry(1.75,40), new THREE.MeshStandardMaterial({color:0x72d6ff,transparent:true,opacity:.5,roughness:.15}));
+      waterBowl.rotation.x=-Math.PI/2; waterBowl.position.y=.48; fountain.add(waterBowl);
+      addRoomLabel('Courtyard',8,4.2,7);
+      markers.push({name:'Courtyard',x:8,z:7});
+
+      for(let i=0;i<12;i++){
+        const grave = box(.55,1.1,.16,mats.stone, rand(24,42), .55, rand(17,30));
+        grave.rotation.y = rand(-.25,.25); world.add(grave);
+      }
+      for(let i=0;i<6;i++){
+        const bed = box(3.5,.28,1.15,new THREE.MeshStandardMaterial({color:0x3b2b1f,roughness:.9}), -6+i*3.8, .18, -13);
+        world.add(bed);
+        for(let j=0;j<6;j++){
+          const sprout = cylinder(.08,.12,.35,7,new THREE.MeshStandardMaterial({color:0x4f8f38,roughness:.8}), -7.25+i*3.8+j*.5, .52, -13+rand(-.3,.3));
+          world.add(sprout);
+        }
+      }
+    }
+    makeCourtyard();
+
+    // Docks and boats
+    function makeDock(x,z,rot=0,len=15) {
+      const g = new THREE.Group(); g.position.set(x,0,z); g.rotation.y=rot; world.add(g);
+      g.add(box(3.2,.35,len,mats.wood,0,.35,0));
+      for(let i=0;i<Math.floor(len/1.2);i++) g.add(box(3.6,.18,.18,mats.darkWood,0,.62,-len/2+i*1.2));
+      for(let side of [-1,1]) for(let i=0;i<5;i++) g.add(cylinder(.12,.14,1.6,8,mats.darkWood,side*1.7,.55,-len/2+2+i*2.8));
+      return g;
+    }
+    makeDock(60,-20,.64,18);
+    makeDock(-67,-31,-.9,14);
+    function makeBoat(x,z,rot=0,scale=1, covered=false) {
+      const g = new THREE.Group(); g.position.set(x,.05,z); g.rotation.y=rot; g.scale.setScalar(scale); world.add(g);
+      const hull = new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.55,5.2,16,1,false,0,Math.PI), mats.wood);
+      hull.rotation.x = Math.PI/2; hull.position.y=.35; hull.castShadow=true; g.add(hull);
+      g.add(box(1.7,.12,4.1,mats.darkWood,0,.58,0));
+      if(covered) g.add(box(1.9,1.25,2.2,mats.stucco,0,1.2,.3));
+      return g;
+    }
+    makeBoat(63,-24,.65,.95,false); makeBoat(57,-22,.8,1.05,true); makeBoat(-64,-36,-.8,.85,false);
+
+    // Trees and vegetation
+    function makeTree(x,z,scale=1) {
+      const g = new THREE.Group(); g.position.set(x,0,z); g.scale.setScalar(scale); world.add(g);
+      const trunk = cylinder(.28,.42,2.5,8,new THREE.MeshStandardMaterial({color:0x5b3f25,roughness:.9}),0,1.25,0); g.add(trunk);
+      const leafMat = new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(rand(.22,.36), rand(.35,.62), rand(.28,.44)), roughness:.9 });
+      const count = Math.floor(rand(3,6));
+      for(let i=0;i<count;i++){
+        const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(rand(1.2,2.0),1), leafMat);
+        crown.position.set(rand(-.8,.8), rand(2.4,4.2), rand(-.8,.8));
+        crown.scale.set(rand(.8,1.4),rand(.7,1.25),rand(.8,1.4));
+        crown.castShadow = crown.receiveShadow = true;
+        g.add(crown);
+      }
+      return g;
+    }
+    const noTreeZones = [
+      [-18,9,18,44],[-39,2,15,17],[30,3,35,24],[15,-18,31,20],[-19,-34,29,15],[47,15,22,19],[0,18,15,15],[8,7,24,24],[25,-8,18,10]
+    ];
+    function inNoTree(x,z) { return noTreeZones.some(n => Math.abs(x-n[0])<n[2]/2 && Math.abs(z-n[1])<n[3]/2); }
+    for(let i=0;i<170;i++){
+      let x,z,tries=0;
+      do { x=rand(-68,68); z=rand(-42,38); tries++; } while((!pointInPoly(x,z) || inNoTree(x,z)) && tries<50);
+      if(tries<50) makeTree(x,z,rand(.65,1.45));
+    }
+    // bushes
+    for(let i=0;i<120;i++){
+      let x=rand(-70,70),z=rand(-43,38);
+      if(!pointInPoly(x,z) || inNoTree(x,z)) continue;
+      const b = new THREE.Mesh(new THREE.IcosahedronGeometry(rand(.35,.9),1), new THREE.MeshStandardMaterial({color:0x315a2c,roughness:.94}));
+      b.position.set(x,rand(.22,.55),z); b.scale.y = rand(.45,.9); b.castShadow=b.receiveShadow=true; world.add(b);
+    }
+
+    // Lamps and props
+    function addLamp(x,z) {
+      const g = new THREE.Group(); g.position.set(x,0,z); world.add(g);
+      g.add(cylinder(.08,.1,2.5,8,mats.darkWood,0,1.25,0));
+      const orb = new THREE.Mesh(new THREE.SphereGeometry(.27,16,10), mats.lantern); orb.position.y=2.65; g.add(orb);
+      const light = new THREE.PointLight(COLORS.lantern, .7, 14, 2); light.position.set(x,2.8,z); scene.add(light);
+    }
+    [[-32,-10],[-7,-5],[8,6],[28,-8],[44,-13],[58,-18],[-51,15],[-18,29],[20,17],[-18,-26]].forEach(p=>addLamp(p[0],p[1]));
+
+    // FPS controls
+    const keys = {};
+    let locked = false, showMapCamera = false, roofVisible = true;
+    let yaw = -0.6, pitch = -0.08;
+    const velocity = new THREE.Vector3();
+    let canJump = false;
+    const playerHeight = 2.1;
+    const playerRadius = .55;
+
+    document.addEventListener('keydown', e => {
+      keys[e.code] = true;
+      if(e.code === 'KeyR') { roofVisible = !roofVisible; roofGroup.visible = roofVisible; }
+      if(e.code === 'KeyL') { labelGroup.visible = !labelGroup.visible; }
+      if(e.code === 'KeyM') { showMapCamera = !showMapCamera; if(showMapCamera){ camera.position.set(170,150,128); pitch = -0.9; yaw = 0; } }
+    });
+    document.addEventListener('keyup', e => keys[e.code] = false);
+
+    function lockPointer() { renderer.domElement.requestPointerLock?.(); }
+    document.getElementById('startBtn').addEventListener('click', () => { document.getElementById('start').style.display='none'; lockPointer(); });
+    renderer.domElement.addEventListener('click', () => { if(document.getElementById('start').style.display === 'none') lockPointer(); });
+    document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === renderer.domElement; });
+    document.addEventListener('mousemove', e => {
+      if(!locked || showMapCamera) return;
+      yaw -= e.movementX * .002;
+      pitch -= e.movementY * .002;
+      pitch = Math.max(-1.35, Math.min(1.25, pitch));
+    });
+
+    function playerHitsBuilding(pos) {
+      // light-weight rectangular collision against known colliders, ignoring tiny props.
+      // If the player is already above the top surface, let them move across rooftops.
+      for(const o of colliders) {
+        const wp = new THREE.Vector3(); o.getWorldPosition(wp);
+        const s = new THREE.Vector3(); o.getWorldScale(s);
+        const geo = o.geometry.parameters || {};
+        const bw = (geo.width || .5) * s.x, bd = (geo.depth || .5) * s.z, bh = (geo.height || .5) * s.y;
+        if(bh < 1) continue;
+        const top = wp.y + bh/2;
+        const feet = pos.y - playerHeight;
+        if(feet > top - .25) continue;
+        if(Math.abs(pos.x - wp.x) < bw/2 + playerRadius && Math.abs(pos.z - wp.z) < bd/2 + playerRadius) return true;
+      }
+      return false;
+    }
+
+    function getSurfaceYAt(x, z, currentFeetY) {
+      let best = 0;
+      for (const s of walkSurfaces) {
+        if (Math.abs(x - s.x) <= s.w/2 && Math.abs(z - s.z) <= s.d/2) {
+          if (s.y <= currentFeetY + 1.35 && s.y >= best) best = s.y;
+        }
+      }
+      return best;
+    }
+
+    function updatePlayer(dt) {
+      if(showMapCamera) {
+        camera.position.lerp(new THREE.Vector3(170,150,128), .04);
+        camera.lookAt(170,0,0);
+        return;
+      }
+      camera.rotation.set(pitch, yaw, 0);
+      const speed = (keys.ShiftLeft || keys.ShiftRight) ? 12.5 : 7.2;
+      const forward = new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw)).normalize();
+      const right = new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw)).normalize();
+      const move = new THREE.Vector3();
+      if(keys.KeyW) move.add(forward);
+      if(keys.KeyS) move.sub(forward);
+      if(keys.KeyD) move.add(right);
+      if(keys.KeyA) move.sub(right);
+      if(move.lengthSq()>0) move.normalize().multiplyScalar(speed*dt);
+      velocity.y -= 18 * dt;
+      if(keys.Space && canJump) { velocity.y = 7.6; canJump = false; }
+
+      const old = camera.position.clone();
+      camera.position.x += move.x;
+      if(playerHitsBuilding(camera.position)) camera.position.x = old.x;
+      camera.position.z += move.z;
+      if(playerHitsBuilding(camera.position)) camera.position.z = old.z;
+      camera.position.y += velocity.y * dt;
+      const feetY = camera.position.y - playerHeight;
+      const floorY = getSurfaceYAt(camera.position.x, camera.position.z, feetY) + playerHeight;
+      if(camera.position.y <= floorY + .05) { camera.position.y = floorY; velocity.y = 0; canJump = true; }
+      // Keep prototype playable: stop far ocean drifting but allow dock/water inspection.
+      camera.position.x = THREE.MathUtils.clamp(camera.position.x, -110, 650);
+      camera.position.z = THREE.MathUtils.clamp(camera.position.z, -180, 180);
+    }
+
+    // Mini map
+    const mapCanvas = document.getElementById('mapCanvas');
+    const mctx = mapCanvas.getContext('2d');
+    function drawMiniMap() {
+      const w = mapCanvas.width, h = mapCanvas.height;
+      mctx.clearRect(0,0,w,h);
+      mctx.fillStyle = 'rgba(4,20,35,.9)'; mctx.fillRect(0,0,w,h);
+      const minX = -85, maxX = 430, minZ = -90, maxZ = 90;
+      const tx = x => ((x - minX) / (maxX - minX)) * w;
+      const tz = z => ((z - minZ) / (maxZ - minZ)) * h;
+      function drawPoly(poly, fill) {
+        mctx.beginPath();
+        poly.forEach((p,i)=>{ if(i===0)mctx.moveTo(tx(p[0]),tz(p[1])); else mctx.lineTo(tx(p[0]),tz(p[1])); });
+        mctx.closePath(); mctx.fillStyle=fill; mctx.fill(); mctx.strokeStyle='rgba(255,255,255,.22)'; mctx.stroke();
+      }
+      drawPoly(islandPts, 'rgba(95,140,68,.82)');
+      drawPoly(secondCityPts, 'rgba(86,132,72,.82)');
+      drawPoly(neoTokyoPts, 'rgba(88,105,118,.86)');
+      mctx.strokeStyle='rgba(235,214,165,.9)'; mctx.lineWidth = 4; mctx.beginPath(); mctx.moveTo(tx(70),tz(-12)); mctx.lineTo(tx(112),tz(-9)); mctx.stroke();
+      mctx.strokeStyle='rgba(0,229,255,.95)'; mctx.lineWidth = 4; mctx.beginPath(); mctx.moveTo(tx(222),tz(-4)); mctx.lineTo(tx(267),tz(-2)); mctx.stroke(); mctx.lineWidth = 1;
+      mctx.fillStyle='rgba(255,210,130,.8)';
+      markers.forEach(m=>{ mctx.fillRect(tx(m.x)-2,tz(m.z)-2,4,4); });
+      mctx.save(); mctx.translate(tx(camera.position.x), tz(camera.position.z)); mctx.rotate(-yaw); mctx.fillStyle='#9ee7ff'; mctx.beginPath(); mctx.moveTo(0,-7); mctx.lineTo(5,6); mctx.lineTo(-5,6); mctx.closePath(); mctx.fill(); mctx.restore();
+    }
+
+    // Developer-friendly layout metadata for converting the blockout into GLB or JSON later.
+    window.ISLAND_LEVEL_DATA = {
+      units: 'Three.js world units. 1 unit can equal 1 meter.',
+      playerStart: { x:-38, y:2.1, z:52 },
+      islandPolygon: islandPts,
+      harborCityPolygon: secondCityPts,
+      neoTokyoPolygon: neoTokyoPts,
+      buildings: markers,
+      controls: ['WASD','Mouse look','Shift run','Space jump','R roof toggle','M top-down map','L labels'],
+      notes: 'Primitive blockout with detailed rooms, paths, docks, shoreline, props and vegetation. Extended with a long bridge to a second harbor city district roughly 30% larger, plus a second neon bridge to a modern Tokyo-style district for expanded FPS gameplay. W now moves forward in the camera direction. This version also adds a moon, stars, clouds, rooftop stair access, more open plaza space, and real black roads with yellow center lines, much larger city footprints, and massively expanded open spaces across the connected cities. Replace building groups with optimized GLB assets for production.'
+    };
+    console.log('ISLAND_LEVEL_DATA', window.ISLAND_LEVEL_DATA);
+
+    function animate() {
+      const dt = Math.min(clock.getDelta(), .04);
+      water.material.opacity = .72 + Math.sin(performance.now()*.001)*.04;
+      reef.rotation.z += dt * .008;
+      if (scene.userData.skyClouds) {
+        scene.userData.skyClouds.forEach((c, i) => {
+          c.position.x += Math.sin(performance.now() * 0.00008 + i) * 0.015;
+          c.position.z += Math.cos(performance.now() * 0.00006 + i * 1.3) * 0.01;
+        });
+      }
+      updatePlayer(dt);
+      labelGroup.children.forEach(s=>s.lookAt(camera.position));
+      drawMiniMap();
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+    addEventListener('resize', () => {
+      camera.aspect = innerWidth/innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+  })();
+  </script>
+</body>
+</html>
