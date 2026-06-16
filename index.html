@@ -1293,9 +1293,7 @@
       g.position.x=TL.clamp(g.position.x,-95,855);
       g.position.z=TL.clamp(g.position.z,-225,225);
       // health bar
-      u.fill.scale.x=Math.max(.001,u.hp/u.maxHp);
-      u.fill.position.x=-(1-u.fill.scale.x)*1.12;
-      u.barG.lookAt(pp.x,u.barG.getWorldPosition(tmpV).y,pp.z);
+      if(u.isBoss){u.fill.scale.x=Math.max(.001,u.hp/u.maxHp);u.fill.position.x=-(1-u.fill.scale.x)*1.12;u.barG.lookAt(pp.x,u.barG.getWorldPosition(tmpV).y,pp.z);}
       // bob legs
       if(!def.fly)u.body.position.y=Math.abs(Math.sin(u.spawnT*u.speed*0.9))*0.12*u.sc;
     }
@@ -1331,9 +1329,11 @@
     });
   }
   function playSample(name){
-    const buf=sampleBuf[name];if(!buf)return false;
+    const buf=sampleBuf[name];
+    if(buf===null)return true;  // still loading: suppress synth, silence > glitch
+    if(!buf)return false;       // undefined = failed, let synth fallback run
     const now=audioCtx.currentTime;const gap=SAMPLE_GAP[name]||0;
-    if(gap>0&&(now-(sampleLast[name]||0))<gap)return true; // throttle (still 'handled')
+    if(gap>0&&(now-(sampleLast[name]||0))<gap)return true;
     sampleLast[name]=now;
     const src=audioCtx.createBufferSource();src.buffer=buf;
     const g=audioCtx.createGain();g.gain.value=SAMPLE_VOL[name]||.6;
@@ -1342,9 +1342,15 @@
     if(dur&&dur<buf.duration){g.gain.setValueAtTime(g.gain.value,now+dur*.7);g.gain.exponentialRampToValueAtTime(.0001,now+dur);src.stop(now+dur+.02);}
     return true;
   }
-  function initAudio(){if(!audioCtx){try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();loadSamples();}catch(e){}}}
+  function initAudio(){
+    if(!audioCtx){try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();loadSamples();}catch(e){}}
+    else if(audioCtx.state==='suspended'){audioCtx.resume().then(()=>{loadSamples();bgm.play().catch(()=>{});});}
+  }
+  // Resume audio when user returns to the tab
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&audioCtx&&state.started&&!muted)bgm.play().catch(()=>{});});
   function sfx(type){
     if(muted||!audioCtx)return;
+    if(audioCtx.state==='suspended')audioCtx.resume();
     if(SAMPLE_URLS[type]&&playSample(type))return; // real sample plays; else fall through to synth
     const t=audioCtx.currentTime;const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);
     let f=400,d=.1,vol=.12,tp='square';
@@ -1378,6 +1384,10 @@
   }
   let flying=false,lastSpace=0,zooming=false;const baseFOV=74;
   let bobT=0;
+  // Cached DOM elements touched every frame
+  const scopeEl=document.getElementById('scope');
+  // Pre-allocated movement vectors — avoids 4+ GC-able allocations per frame at 60 fps
+  const _fwd=new THREE.Vector3(),_right=new THREE.Vector3(),_move=new THREE.Vector3(),_oldPos=new THREE.Vector3();
 
   document.addEventListener('keydown',e=>{
     keys[e.code]=true;
@@ -1457,15 +1467,15 @@
   function updatePlayer(dt){
     camera.rotation.set(pitch,yaw,0);
     const speed=(keys.ShiftLeft||keys.ShiftRight)?(flying?16:18.75):11.1;
-    const fwd=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw)).normalize();
-    const right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw)).normalize();
-    const move=new THREE.Vector3();
-    if(keys.KeyW)move.add(fwd);if(keys.KeyS)move.sub(fwd);if(keys.KeyD)move.add(right);if(keys.KeyA)move.sub(right);
-    const moving=move.lengthSq()>0;
-    if(moving)move.normalize().multiplyScalar(speed*dt);
-    const old=camera.position.clone();
-    camera.position.x+=move.x;if(hitsBuilding(camera.position))camera.position.x=old.x;
-    camera.position.z+=move.z;if(hitsBuilding(camera.position))camera.position.z=old.z;
+    _fwd.set(-Math.sin(yaw),0,-Math.cos(yaw));
+    _right.set(Math.cos(yaw),0,-Math.sin(yaw));
+    _move.set(0,0,0);
+    if(keys.KeyW)_move.add(_fwd);if(keys.KeyS)_move.sub(_fwd);if(keys.KeyD)_move.add(_right);if(keys.KeyA)_move.sub(_right);
+    const moving=_move.lengthSq()>0;
+    if(moving)_move.normalize().multiplyScalar(speed*dt);
+    _oldPos.copy(camera.position);
+    camera.position.x+=_move.x;if(hitsBuilding(camera.position))camera.position.x=_oldPos.x;
+    camera.position.z+=_move.z;if(hitsBuilding(camera.position))camera.position.z=_oldPos.z;
     if(flying){
       // free flight: no gravity. Space ascends, Shift descends.
       velocity.y=0;let vy=0;
@@ -1490,11 +1500,10 @@
     gunGroup.position.y=-0.30+bob;
     gunGroup.position.z=-0.60+recoil*.36;
     gunGroup.rotation.x=.05+recoil*.8;
-    // spin pulse cannon barrels; pulse plasma orb
-    const activeModel=Object.values(gunModels).find(m=>m.visible);
-    if(activeModel){
-      if(activeModel.userData.spin)activeModel.userData.spin.rotation.z+=dt*(recoil>.02?34:6);
-      if(activeModel.userData.orb)activeModel.userData.orb.material.emissiveIntensity=2.4+Math.sin(performance.now()*.006)*1.0;
+    // spin pulse cannon barrels; pulse plasma orb (gR is always the active model)
+    if(gR){
+      if(gR.userData.spin)gR.userData.spin.rotation.z+=dt*(recoil>.02?34:6);
+      if(gR.userData.orb)gR.userData.orb.material.emissiveIntensity=2.4+Math.sin(performance.now()*.006)*1.0;
     }
     recoil*=Math.pow(.0001,dt);
   }
@@ -1564,12 +1573,12 @@
       // scope zoom FOV
       const targetFOV=zooming?32:baseFOV;
       if(Math.abs(camera.fov-targetFOV)>.05){camera.fov+=(targetFOV-camera.fov)*Math.min(1,dt*12);camera.updateProjectionMatrix();}
-      const scEl=document.getElementById('scope');if(scEl)scEl.style.opacity=zooming?'1':'0';
+      scopeEl.style.opacity=zooming?'1':'0';
       // 2X damage boost timer
       if(state.dmgMultTimer>0){state.dmgMultTimer-=dt;if(state.dmgMultTimer<=0){state.dmgMult=1;}updateBoostHud();}
       updateGolems(dt);updateProjs(dt);updateEProjs(dt);updateBursts(dt);updatePickups(dt);updateLightnings(dt);updateTimeOfDay(dt);
       // wave spawning
-      if(waveActive){spawnTimer-=dt;if(spawnTimer<=0&&spawnQueue.length){const live=golems.filter(g=>g.userData.alive).length;if(live<22){spawnFromQueue();spawnTimer=0.45+rnd()*0.5;}else spawnTimer=0.4;}}
+      if(waveActive){spawnTimer-=dt;if(spawnTimer<=0&&spawnQueue.length){if(golems.length<22){spawnFromQueue();spawnTimer=0.45+rnd()*0.5;}else spawnTimer=0.4;}}
       else if(interWaveTimer>0){interWaveTimer-=dt;if(interWaveTimer<=0)startWave();}
     } else {
       updateBursts(dt);
