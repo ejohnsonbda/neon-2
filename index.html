@@ -474,7 +474,7 @@
       cg.add(box(16,.6,16,iceD,0,fy+.3,0));
       addWalk(cx,cz,16,16,fy+.6);
       // four neon edge-strips so floors read clearly
-      [[8.2,0,16],[−8.2,0,16],[0,8.2,16],[0,-8.2,16]].forEach(([ex,ez,len])=>{
+      [[8.2,0,16],[-8.2,0,16],[0,8.2,16],[0,-8.2,16]].forEach(([ex,ez,len])=>{
         const horiz=ez===0;cg.add(box(horiz?len:.3,.15,horiz?.3:len,glow,ex,fy+.65,ez));});
     });
     // staircase helper: builds step boxes and addWalk entries
