@@ -32,7 +32,9 @@ const EnemyFactory = {
     // ---- tree goblins (woodland menaces) ----
     sapling: { hp: 34,  speed: 7.4, dmg: 6,  scale: 0.7,  glow: 0x9be84a, melee: true,  score: 90  },
     bramble: { hp: 95,  speed: 4.0, dmg: 12, scale: 1.0,  glow: 0xc6f23a, melee: true,  score: 160 },
-    treant:  { hp: 300, speed: 2.0, dmg: 20, scale: 1.6,  glow: 0x6fd83a, ranged: true, range: 22, projDmg: 14, fireRate: 1900, score: 320 }
+    treant:  { hp: 300, speed: 2.0, dmg: 20, scale: 1.6,  glow: 0x6fd83a, ranged: true, range: 22, projDmg: 14, fireRate: 1900, score: 320 },
+    // ---- desert island golems ----
+    twohead: { hp: 180, speed: 3.2, dmg: 18, scale: 1.3,  glow: 0xffb030, melee: true,  score: 280 }
   },
 
   _skin: 'rock',
@@ -133,11 +135,60 @@ const EnemyFactory = {
       case 'bramble': g = this._bramble(); break;
       case 'treant':  g = this._treant(); break;
       case 'boss':    g = this._boss(); break;
+      case 'twohead': g = this._twohead(); break;
       default:        g = this._grunt(); break;
     }
     g.userData.skin = this._skin;
     this._skin = 'rock';
     return g;
+  },
+
+  // ---- TWOHEAD: desert golem with two heads, stocky and aggressive ----
+  _twohead() {
+    const g = _geos();
+    const grp = new THREE.Group();
+    const cores = [];
+    const glow = this.TYPES.twohead.glow;
+
+    // legs — wide stance
+    const legL = this._chunk(grp, this._r(3), -0.38, 0.36, 0, 0.32, 0.42, 0.32);
+    const legR = this._chunk(grp, this._r(3), 0.38, 0.36, 0, 0.32, 0.42, 0.32);
+
+    // wide barrel body
+    this._chunk(grp, this._r(0), 0, 1.15, -0.05, 0.82, 0.72, 0.72, 0, 0.4, 0, g.dod);
+    this._chunk(grp, this._r(2), -0.5, 1.4, -0.28, 0.32, 0.4, 0.32, 0.5, 1, 0);
+    this._chunk(grp, this._r(4), 0.52, 1.45, -0.22, 0.3, 0.36, 0.3, 0, 0.4, 0.3);
+
+    // thick neck/shoulder band
+    this._chunk(grp, this._r(1), 0, 1.82, 0, 0.68, 0.28, 0.6, 0, 0, 0, g.box);
+
+    // --- HEAD LEFT ---
+    const faceL = this._chunk(grp, this._r(1), -0.36, 2.25, 0.32, 0.44, 0.42, 0.32, -0.1, 0.2, 0, g.box);
+    this._chunk(grp, this._r(3), -0.36, 2.5, 0.34, 0.5, 0.15, 0.28, -0.18, 0, 0, g.box); // brow L
+    this._eyes(grp, cores, this._eyeMat(glow), 2.3, 0.52, 0.14, 0.1);
+    this._mossCrown(grp, 2.65, 0.05, 0.32, 2);
+
+    // --- HEAD RIGHT ---
+    this._chunk(grp, this._r(1), 0.36, 2.25, 0.32, 0.44, 0.42, 0.32, -0.1, -0.2, 0, g.box);
+    this._chunk(grp, this._r(3), 0.36, 2.5, 0.34, 0.5, 0.15, 0.28, -0.18, 0, 0, g.box); // brow R
+    // second set of eyes (offset x so _eyes helper draws correctly)
+    const eyeMat2 = this._eyeMat(glow); cores.push(eyeMat2);
+    this._chunk(grp, eyeMat2, 0.22, 2.3, 0.52, 0.1, 0.06, 0.05, 0, 0, Math.PI / 4, g.oct);
+    this._chunk(grp, eyeMat2, 0.5, 2.3, 0.52, 0.1, 0.06, 0.05, 0, 0, Math.PI / 4, g.oct);
+    this._mossCrown(grp, 2.65, 0.3, 0.32, 2);
+
+    // arms
+    const armL = this._makeArm(grp, -0.72, 1.3, 0.05, 1);
+    const armR = this._makeArm(grp, 0.72, 1.3, 0.05, -1);
+
+    // jaw drips on both heads
+    this._mossDrips(grp, 2.06, 0.44, 0.34, 4);
+    this._mossDrips(grp, 2.06, 0.44, 0.34, 4);
+
+    grp.userData.parts = { legs: [legL, legR], arms: [armL, armR], head: faceL };
+    grp.userData.cores = cores;
+    grp.userData.eyeHeight = 2.3;
+    return grp;
   },
 
   // pick a rock material

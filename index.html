@@ -59,7 +59,7 @@
     #wslots{display:flex;gap:4px;justify-content:flex-end;margin-top:8px;flex-wrap:wrap;}
     #wslots .slot{font-size:10px;font-weight:700;padding:3px 7px;border-radius:6px;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.5);}
     #wslots .slot.active{border-color:var(--cyan);color:var(--cyan);background:rgba(25,245,255,.12);box-shadow:0 0 10px rgba(25,245,255,.22);}
-    #miniMap{position:fixed;right:24px;bottom:210px;width:168px;height:168px;z-index:6;border-radius:50%;overflow:hidden;background:rgba(3,10,20,.62);border:2px solid rgba(25,245,255,.5);box-shadow:0 0 26px rgba(25,245,255,.35),inset 0 0 22px rgba(25,245,255,.14);} 10px 30px rgba(0,0,0,.45);backdrop-filter:blur(8px);}
+    #miniMap{position:fixed;right:24px;bottom:210px;width:168px;height:168px;z-index:6;border-radius:50%;overflow:hidden;background:rgba(3,10,20,.62);border:2px solid rgba(25,245,255,.5);box-shadow:0 0 26px rgba(25,245,255,.35),inset 0 0 22px rgba(25,245,255,.14);}
     #miniMap canvas{width:100%;height:100%;}
     #banner{position:fixed;inset:0;display:grid;place-items:center;z-index:7;pointer-events:none;opacity:0;transition:opacity .4s;}
     #banner .big{font-family:'Orbitron';font-size:62px;font-weight:900;letter-spacing:8px;color:#fff;text-shadow:0 0 24px var(--cyan),0 0 50px var(--mag);text-align:center;}
@@ -347,6 +347,49 @@
   const iceGround=new THREE.MeshStandardMaterial({color:0xcfeeff,roughness:.32,metalness:.06,emissive:0x16384a,emissiveIntensity:.12});
   makeIsland(isl4,iceGround);
 
+  // isl5: desert pyramid island — rocky, mountainous, SE of Neo Tokyo
+  const isl5=[[455,95],[498,80],[548,82],[590,100],[615,135],[618,178],[600,208],[558,222],[505,225],[462,212],[440,178],[438,135]];
+  const desertGround=new THREE.MeshStandardMaterial({color:0xb8935a,roughness:.96,metalness:.01});
+  makeIsland(isl5,desertGround);
+  (()=>{
+    const px=535,pz=155; // pyramid center
+    // Giant 4-sided pyramid landmark
+    const pyrMat=new THREE.MeshStandardMaterial({color:0xd4a85a,roughness:.9,flatShading:true});
+    const pyr=new THREE.Mesh(new THREE.ConeGeometry(40,55,4),pyrMat);
+    pyr.rotation.y=Math.PI/4;pyr.position.set(px,27.5,pz);pyr.castShadow=true;pyr.receiveShadow=true;world.add(pyr);addColl(pyr);
+    addWalk(px,pz,6,6,55.5); // walkable apex
+    addLabel('Pyramid',px,60,pz);markers.push({name:'Pyramid',x:px,z:pz});
+    // Pyramid edge glow strips
+    const stripMat=neon(0xffe45c,1.2);
+    for(let a=0;a<4;a++){const ang=a/4*Math.PI*2+Math.PI/4;const ex=Math.cos(ang)*28,ez=Math.sin(ang)*28;const strip=box(.6,62,.6,stripMat,px+ex,28.5,pz+ez);strip.rotation.y=ang;world.add(strip);}
+    // Rocky mountains scattered around the island
+    const rockMat=new THREE.MeshStandardMaterial({color:0x8a6a3a,roughness:.97,flatShading:true});
+    const rockMat2=new THREE.MeshStandardMaterial({color:0x9a7a4a,roughness:.97,flatShading:true});
+    const mtnPositions=[[480,100],[560,95],[600,125],[615,165],[595,200],[555,215],[500,218],[460,200],[445,165],[450,125]];
+    for(const[mx,mz] of mtnPositions){
+      const h=rand(18,38),r=rand(8,18);
+      const mt=new THREE.Mesh(new THREE.ConeGeometry(r,h,7),Math.random()>.5?rockMat:rockMat2);
+      mt.position.set(mx,h/2,mz);mt.rotation.y=rand(0,Math.PI);mt.castShadow=true;world.add(mt);addColl(mt);
+      // snow caps on taller peaks
+      if(h>28){const cap=new THREE.Mesh(new THREE.ConeGeometry(r*.35,h*.22,7),new THREE.MeshStandardMaterial({color:0xe8e0d0,roughness:.9}));cap.position.set(mx,h+h*.06,mz);cap.rotation.y=rand(0,Math.PI);world.add(cap);}
+    }
+    // Sandy desert floor rocks/boulders
+    const boulderGeo=new THREE.DodecahedronGeometry(1,0);
+    for(let i=0;i<30;i++){const bx2=rand(445,615),bz2=rand(88,222);if(!polyInside(bx2,bz2,isl5))continue;const s=rand(1.2,3.8);const b=new THREE.Mesh(boulderGeo,rockMat);b.position.set(bx2,s*.4,bz2);b.scale.set(s,s*rand(.55,.85),s*rand(.7,1));b.rotation.set(rand(0,Math.PI),rand(0,Math.PI),rand(0,Math.PI));b.castShadow=true;world.add(b);}
+    // Desert obelisks flanking the pyramid
+    for(const[ox,oz] of [[px-55,pz-55],[px+55,pz-55],[px-55,pz+55],[px+55,pz+55]]){
+      if(!polyInside(ox,oz,isl5))continue;
+      const ob=box(3.5,28,3.5,pyrMat,ox,14.3,oz);world.add(ob);addColl(ob);
+      const tip=new THREE.Mesh(new THREE.ConeGeometry(2,6,4),pyrMat);tip.position.set(ox,29.5,oz);tip.rotation.y=Math.PI/4;world.add(tip);
+      world.add(box(4.5,.8,4.5,new THREE.MeshStandardMaterial({color:0xc8a040,roughness:.7}),ox,.75,oz));
+    }
+    // Causeway from Neo Tokyo (x~415) to pyramid island
+    const cwMat=new THREE.MeshStandardMaterial({color:0x9a8464,roughness:.96});
+    const cw=box(10,.4,55,cwMat,432,0.3,110);cw.receiveShadow=true;world.add(cw);addWalk(432,110,10,55,.5);
+    // neon border markers on causeway
+    for(const s of[-1,1]){world.add(box(.3,.9,55,neon(0xffe45c,1.6),432+s*5.1,.75,110));}
+  })();
+
   // Sprawl ground
   const SR={x0:430,x1:710,z0:-180,z1:180};
   const sgW=SR.x1-SR.x0,sgD=SR.z1-SR.z0,sgCX=(SR.x0+SR.x1)/2,sgCZ=(SR.z0+SR.z1)/2;
@@ -445,18 +488,27 @@
       // battlement notches
       for(let a=0;a<10;a++){const an=a/10*Math.PI*2;cg.add(box(.7,1.0,.7,ice,x+Math.cos(an)*r*1.1,h+3.4,z+Math.sin(an)*r*1.1));}
     }
-    // curtain walls (square) + corner towers
+    // curtain walls (square) + corner towers; north wall has door gap for entrance
     const wsz=34;
-    for(const[wx,wz,ww,wd] of [[0,-wsz,wsz*2+6,3],[0,wsz,wsz*2+6,3],[-wsz,0,3,wsz*2],[wsz,0,3,wsz*2]]){
+    // North wall split into left/right pieces with 8-unit door gap in the center
+    const nwHalf=(wsz*2+6)/2,gapW=8,nwPieceW=nwHalf-gapW/2;
+    for(const[wx,wz,ww,wd] of [
+      [-nwHalf+nwPieceW/2,-wsz,nwPieceW,3],   // north-left
+      [nwHalf-nwPieceW/2,-wsz,nwPieceW,3],    // north-right
+      [0,wsz,wsz*2+6,3],[-wsz,0,3,wsz*2],[wsz,0,3,wsz*2]]){
       const wseg=box(ww,9,wd,iceD,wx,7.4,wz);cg.add(wseg);addColl(wseg);
       // battlements along the top
       const along=ww>wd?ww:wd;const horiz=ww>wd;
       for(let i=-along/2+2;i<along/2;i+=3){cg.add(box(horiz?1.2:1.6,1.4,horiz?1.6:1.2,ice,wx+(horiz?i:0),12.4,wz+(horiz?0:i)));}
     }
     tower(-wsz,-wsz,5,20);tower(wsz,-wsz,5,20);tower(-wsz,wsz,5,20);tower(wsz,wsz,5,20);
-    // gatehouse (front, facing -z toward bridge)
-    cg.add(box(14,11,5,ice,0,8.4,-wsz));
-    const gate=box(5.5,7,5.6,new THREE.MeshStandardMaterial({color:0x0a1c28,roughness:.6,emissive:0x0a3550,emissiveIntensity:.4}),0,6.4,-wsz);cg.add(gate);
+    // gatehouse (front, facing -z toward bridge) with open arch entrance
+    cg.add(box((nwPieceW)*2,11,5,ice,0,8.4,-wsz)); // gatehouse header (no gap collision)
+    // neon door frame to highlight entrance
+    cg.add(box(.4,9.5,.6,glow,-gapW/2,7.65,-wsz));  // left jamb
+    cg.add(box(.4,9.5,.6,glow,gapW/2,7.65,-wsz));   // right jamb
+    cg.add(box(gapW+1,.5,.6,glow,0,12.4,-wsz));      // lintel
+    const gate=box(6,8.5,5.6,new THREE.MeshStandardMaterial({color:0x0a1c28,roughness:.6,emissive:0x0a3550,emissiveIntensity:.4}),0,5.65,-wsz);cg.add(gate);
     tower(-9,-wsz,3.4,16);tower(9,-wsz,3.4,16);
     // ===== ENTERABLE KEEP — hollow walls, 2 interior floors, twin staircases =====
     const KB=2.9,KH=22; // base Y, wall height
@@ -528,23 +580,6 @@
     road(285,0,400,2,12);           // tokyo main boulevard
     road(170,-66,170,-92,9);        // toward ice bridge
 
-    // ELEVATED OVERPASS: pillars + raised deck with on/off ramps, spanning the harbor→tokyo gap
-    function overpass(x1,z1,x2,z2,w,H){
-      const dx=x2-x1,dz=z2-z1,len=Math.hypot(dx,dz),ang=Math.atan2(dx,dz),mx=(x1+x2)/2,mz=(z1+z2)/2;
-      const deck=box(w,.6,len,M.asphalt,mx,H,mz);deck.rotation.y=ang;world.add(deck);addWalk(mx,mz,w,len,H+.3);
-      for(const s of[-1,1]){const rail=box(.4,1.0,len,neon(0x19f5ff,1.4),mx+Math.cos(ang)*s*(w/2-0.2),H+.7,mz-Math.sin(ang)*s*(w/2-0.2));rail.rotation.y=ang;world.add(rail);}
-      // support pillars
-      for(let t=0.12;t<0.92;t+=0.18){const px=x1+dx*t,pz=z1+dz*t;const pil=cyl(1.1,1.3,H,10,M.metal,px,H/2,pz);world.add(pil);addColl(pil);}
-      // ramps down at both ends
-      for(const[ex,ez,sgn] of [[x1,z1,1],[x2,z2,-1]]){
-        const rampLen=H*3.0,rmx=ex+Math.sin(ang)*sgn*rampLen/2,rmz=ez+Math.cos(ang)*sgn*rampLen/2;
-        const ramp=box(w,.6,rampLen,M.asphalt,rmx,H/2,rmz);
-        ramp.rotation.order='YXZ';ramp.rotation.y=ang;ramp.rotation.x=sgn*Math.atan2(H,rampLen);
-        world.add(ramp);addWalk(rmx,rmz,w,rampLen,H/2+.3);
-      }
-    }
-    overpass(235,-2,300,2,11,9);    // big flyover over the harbor→tokyo causeway
-    overpass(300,-30,300,40,9,12);  // tokyo cross overpass
   })();
 
   (()=>{const g=new THREE.Group();g.position.set(0,0,18);world.add(g);const lh=6,lv=5;g.add(box(8.5,.35,8.5,M.stone,0,.18,0));for(let l=0;l<lv;l++){const y=.35+l*lh;g.add(wallB(8.5,lh,.36,0,y+lh/2,-4.25,M.stucco));g.add(wallB(.36,lh,8.5,-4.25,y+lh/2,0,M.stucco));g.add(wallB(.36,lh,8.5,4.25,y+lh/2,0,M.stucco));}g.add(box(9.5,2.2,9.5,M.darkWood,0,lv*lh+1.5,0));const sp=new THREE.Mesh(new THREE.ConeGeometry(5.6,13,6),M.roofS);sp.position.set(0,lv*lh+9,0);sp.castShadow=true;g.add(sp);addLabel('Bell Tower',0,39,18);markers.push({name:'Bell Tower',x:0,z:18});})();
@@ -673,6 +708,7 @@
     sapling: {col:0x9be84a,hp:34,  spd:7.4,dmg:6, rng:2.0,ranged:false,fly:false,flyH:0, score:90,  sz:0.7, boss:false},
     bramble: {col:0xc6f23a,hp:95,  spd:4.0,dmg:12,rng:3.0,ranged:false,fly:false,flyH:0, score:160, sz:1.0, boss:false},
     treant:  {col:0x6fd83a,hp:300, spd:2.0,dmg:20,rng:22, ranged:true, fly:false,flyH:0, score:320, sz:1.6, boss:false,projDmg:14},
+    twohead: {col:0xffb030,hp:180, spd:3.2,dmg:18,rng:3.2,ranged:false,fly:false,flyH:0, score:280, sz:1.3, boss:false},
   };
 
   function buildMesh(type,def){
@@ -766,7 +802,7 @@
     const g=new THREE.Group();g.position.set(x,0,z);golemGrp.add(g);
     const sc=def.sz*(rand(.9,1.1));const body=new THREE.Group();body.scale.setScalar(sc);g.add(body);
     // Build mesh: use EnemyFactory (repo's faceted rock golems) when available
-    const mg=window.EnemyFactory?EnemyFactory.build(type):buildMesh(type,def);
+    const mg=window.EnemyFactory?EnemyFactory.build(type,type==='twohead'?'desert':'rock'):buildMesh(type,def);
     body.add(mg);
     // Foot model on ground
     if(window.EnemyFactory){const bbox=new THREE.Box3().setFromObject(mg);if(bbox.min.y<0)mg.position.y-=bbox.min.y;}
@@ -863,7 +899,7 @@
     {name:'FORCE PUSH',   color:0x19f0ff,dmg:0,  cd:1.4, spd:50, spread:.002,ammo:Infinity,maxAmmo:Infinity,dualable:false,pellets:1,splash:12},
     {name:'PLASMA',       color:0x9b5cff,dmg:42, cd:.62, spd:80, spread:.005,ammo:60,     maxAmmo:60,      dualable:false,pellets:1,splash:5.5,splashDmg:55},
     {name:'PULSE CANNON', color:0xff7a18,dmg:8,  cd:.045,spd:210,spread:.016,ammo:700,    maxAmmo:700,     dualable:false,pellets:1,splash:0},
-    {name:'BAZOOKA',      color:0xff5a1e,dmg:60, cd:1.05,spd:62, spread:.004,ammo:18,     maxAmmo:18,      dualable:false,pellets:1,splash:8,splashDmg:130},
+    {name:'BAZOOKA',      color:0xff5a1e,dmg:80, cd:1.05,spd:62, spread:.004,ammo:18,     maxAmmo:18,      dualable:false,pellets:1,splash:18,splashDmg:220},
   ];
   let wIdx=0,dualWield=false,lastFire=0,dualHand=0;
   let fpCharging=false,fpCharge=0,fpHand=1;
@@ -1119,8 +1155,12 @@
     if(now-lastFire<cd)return;lastFire=now;
     if(w.ammo!==Infinity)w.ammo=Math.max(0,w.ammo-1);
     const dir=new THREE.Vector3();camera.getWorldDirection(dir);
-    const tipW=new THREE.Vector3().copy(camera.position).addScaledVector(dir,1.1).add(new THREE.Vector3(0,-0.12,0));
-    for(let p=0;p<w.pellets;p++){const d=dir.clone();d.x+=rand(-w.spread,w.spread);d.y+=rand(-w.spread,w.spread);d.z+=rand(-w.spread,w.spread);d.normalize();spawnProj(tipW,d,w);}
+    const right=new THREE.Vector3().crossVectors(dir,new THREE.Vector3(0,1,0)).normalize();
+    const baseTip=new THREE.Vector3().copy(camera.position).addScaledVector(dir,1.1).add(new THREE.Vector3(0,-0.12,0));
+    const isDual=dualWield&&w.dualable&&gL;
+    const muzzles=isDual?[baseTip.clone().addScaledVector(right,0.22),baseTip.clone().addScaledVector(right,-0.22)]:[baseTip];
+    if(w.ammo!==Infinity&&isDual)w.ammo=Math.max(0,w.ammo-1);
+    for(const mz of muzzles){for(let p=0;p<w.pellets;p++){const d=dir.clone();d.x+=rand(-w.spread,w.spread);d.y+=rand(-w.spread,w.spread);d.z+=rand(-w.spread,w.spread);d.normalize();spawnProj(mz,d,w);}}
     recoil=Math.min(.18,recoil+(w.pellets>1?.15:.07));
     // muzzle flash
     muzzleFlashMesh.material.opacity=.45;muzzleLight.intensity=1.4;
@@ -1188,8 +1228,8 @@
   let waveStuckTimer=0; // seconds since last kill when hostiles remain — triggers teleport
   let lastKillT=0;
   // Endless mode: per-island kill counters + island detection
-  const islandPolys=[null,null,null,null,null]; // filled after island polys defined
-  const endlessKills=[0,0,0,0,0],endlessWaveN=[1,1,1,1,1];
+  const islandPolys=[null,null,null,null,null,null]; // filled after island polys defined
+  const endlessKills=[0,0,0,0,0,0],endlessWaveN=[1,1,1,1,1,1];
   let endlessSpawnTimer=0;
 
   function addScore(n){state.score+=n;document.getElementById('scoreVal').textContent=state.score.toLocaleString();}
@@ -1222,10 +1262,10 @@
   // Spawns are spread across ALL islands/districts, not just a ring around the player.
   // Near islands only until wave 6; all 5 open after that so the world feels alive
   // fill endless island poly refs now that all island polys exist
-  [isl0,isl1,isl2,isl3,isl4].forEach((p,i)=>islandPolys[i]=p);
+  [isl0,isl1,isl2,isl3,isl4,isl5].forEach((p,i)=>islandPolys[i]=p);
   function currentIsland(){for(let i=0;i<islandPolys.length;i++)if(polyInside(camera.position.x,camera.position.z,islandPolys[i]))return i;return-1;}
 
-  const SPAWN_ISLANDS=[isl0,isl1,isl2,isl3,isl4].map(poly=>{let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;poly.forEach(p=>{x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);z0=Math.min(z0,p[1]);z1=Math.max(z1,p[1]);});return{poly,x0,x1,z0,z1};});
+  const SPAWN_ISLANDS=[isl0,isl1,isl2,isl3,isl4,isl5].map(poly=>{let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;poly.forEach(p=>{x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);z0=Math.min(z0,p[1]);z1=Math.max(z1,p[1]);});return{poly,x0,x1,z0,z1};});
   function randSpawnPoint(){
     // Always ≥70 % near the player so golems are visible and fights feel immediate.
     // Far-island spawns open up after wave 5 for world-scale variety.
@@ -1254,7 +1294,7 @@
     const q=[];const budget=6+n*3;
     // Milestone boss waves at 20 / 40 / 60 / 80 / 100… (super apex spider at 40 & 80; boss otherwise)
     if(n%20===0){q.push((n%40===0)?'spider':'boss');}
-    let pts=budget;const pool=['grunt','grunt','runner','sapling','bramble','shooter','tank','dragon','treant'];
+    let pts=budget;const pool=['grunt','grunt','runner','sapling','bramble','shooter','tank','dragon','treant','twohead'];
     while(pts>0){const t=pick(n<3?['grunt','runner','sapling','bramble']:pool);q.push(t);pts-= (t==='tank'||t==='treant'||t==='dragon')?3:1;}
     // a few neutral wanderers for atmosphere
     return {q,neutral:Math.min(4,1+Math.floor(n/2))};
@@ -1536,7 +1576,7 @@
 
   function updatePlayer(dt){
     camera.rotation.set(pitch,yaw,0);
-    const speed=(keys.ShiftLeft||keys.ShiftRight)?(flying?16:18.75):11.1;
+    const speed=(keys.ShiftLeft||keys.ShiftRight)?(flying?16:37.5):11.1;
     _fwd.set(-Math.sin(yaw),0,-Math.cos(yaw));
     _right.set(Math.cos(yaw),0,-Math.sin(yaw));
     _move.set(0,0,0);
@@ -1661,7 +1701,7 @@
             while(tries<30&&(!polyInside(sp.x,sp.z,s.poly)||golemBlocked(sp.x,sp.z,1.3)||Math.hypot(sp.x-camera.position.x,sp.z-camera.position.z)<12));
           } else { const ang=rand(0,Math.PI*2),d=rand(18,40);sp={x:camera.position.x+Math.cos(ang)*d,z:camera.position.z+Math.sin(ang)*d}; }
           // wave-weighted pool
-          const pool=endlessWaveN[ci<0?0:ci]<3?['grunt','runner','sapling']:['grunt','runner','tank','shooter','dragon','sapling','bramble','treant'];
+          const pool=endlessWaveN[ci<0?0:ci]<3?['grunt','runner','sapling']:ci===5?['twohead','twohead','grunt','runner','tank']:['grunt','runner','tank','shooter','dragon','sapling','bramble','treant'];
           const g=makeGolem(sp.x,sp.z,pick(pool));if(g)g.userData.hostile=true;
           updateHostileCount();
           endlessSpawnTimer=0.5+rnd()*0.4;
