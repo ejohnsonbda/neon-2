@@ -363,7 +363,7 @@
     pyr.rotation.y=Math.PI/4;pyr.position.set(px,39,pz);pyr.castShadow=true;pyr.receiveShadow=true;world.add(pyr);addColl(pyr);
     // Pyramid stepped base tiers (3 layers)
     for(const[tier,r,h,y] of [[1,68,5,2.5],[2,72,3.5,0.6]]){
-      const base=new THREE.Mesh(new THREE.BoxGeometry(r*1.42,h,r*1.42),pyrDark);base.position.set(px,y,pz);base.rotation.y=Math.PI/4;base.castShadow=true;world.add(base);addWalk(px,pz,r*1.4,r*1.4,y+h/2);
+      const base=new THREE.Mesh(new THREE.BoxGeometry(r*1.42,h,r*1.42),pyrDark);base.position.set(px,y,pz);base.rotation.y=Math.PI/4;base.castShadow=true;world.add(base);addColl(base);
     }
     addLabel('Great Pyramid',px,85,pz);markers.push({name:'Great Pyramid',x:px,z:pz});
     // Glowing edge strips up each corner
@@ -1270,7 +1270,7 @@
     // muzzle flash
     muzzleFlashMesh.material.opacity=.45;muzzleLight.intensity=1.4;
     setTimeout(()=>{muzzleFlashMesh.material.opacity=0;muzzleLight.intensity=0;},50);
-    sfx(({'PISTOL':'shot','SMG':'smg','DUAL SHOTGUNS':'blast','PLASMA':'plasma','PULSE CANNON':'pulse','BAZOOKA':'blast'})[w.name]||'shot');
+    sfx(({'PISTOL':'shot','SMG':'smg','DUAL SHOTGUNS':'blast','PLASMA':'plasma','PULSE CANNON':'smg','BAZOOKA':'blast'})[w.name]||'shot');
     updateWeaponHud();
   }
   function releaseForcePush(){
@@ -1564,6 +1564,7 @@
     const t=audioCtx.currentTime;const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);
     let f=400,d=.1,vol=.12,tp='square';
     if(type==='shot'){f=720;d=.07;tp='square';vol=.1;}
+    else if(type==='smg'){f=480;d=.05;tp='sawtooth';vol=.09;}
     else if(type==='blast'){f=180;d=.16;tp='sawtooth';vol=.16;}
     else if(type==='pulse'){f=920;d=.04;tp='square';vol=.06;}
     else if(type==='plasma'){f=300;d=.2;tp='sawtooth';vol=.14;}
