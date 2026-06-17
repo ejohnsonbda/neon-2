@@ -418,22 +418,7 @@
     // support pillars
     for(const bpz of[194,199,204]){world.add(box(1,2.4,1,bMat,-3.5,1.2,bpz));world.add(box(1,2.4,1,bMat,3.5,1.2,bpz));}
     addLabel('Bridge to Pyramid Island',5,6,199);
-
-    // === AMMO CRATES on pyramid island ===
-    for(const[ax,az] of [[10,215],[px-40,pz],[px+40,pz],[220,305],[150,380]]){
-      if(polyInside(ax,az,isl5))dropPickup(ax,az,'ammo');
-    }
   })();
-
-  // === AMMO CRATES scattered across existing islands ===
-  // Harbor area
-  dropPickup(155,15,'ammo');dropPickup(190,-18,'ammo');
-  // Neo Tokyo / Japan district
-  dropPickup(310,0,'ammo');dropPickup(360,-20,'ammo');
-  // Ice castle bridge
-  dropPickup(170,-90,'ammo');
-  // Home island
-  dropPickup(20,20,'ammo');
 
   // Sprawl ground
   const SR={x0:430,x1:710,z0:-180,z1:180};
@@ -1579,6 +1564,10 @@
     state.started=true;updateVitals();updateWeaponHud();equipWeapon();
     bgm.play().catch(()=>{});
     lockPointer();
+    // Ammo crates — deferred here so EMOJI/dropPickup refs are fully initialized
+    const _ammoPts=[[10,215],[135,305],[215,305],[220,305],[150,380], // pyramid island
+      [155,15],[190,-18],[310,0],[360,-20],[170,-90],[20,20]];       // other islands
+    for(const[ax,az] of _ammoPts)dropPickup(ax,az,'ammo');
     if(state.endless){
       document.getElementById('waveVal').textContent='♾ ENDLESS';
       showBanner('ENDLESS MODE','100 kills per island · all 5 open',2800);
