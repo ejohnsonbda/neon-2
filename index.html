@@ -290,8 +290,10 @@
   }
   function updateTimeOfDay(dt){
     const inJapan=camera.position.x>=JAPAN_X;
-    if(inJapan&&!timeState._warned){timeState._warned=true;showBanner('NIGHTFALL','Entering Japan',2200);}
-    const target=inJapan?1:0;
+    // isl5 (pyramid island) always stays in daylight regardless of x
+    const inPyramid=polyInside(camera.position.x,camera.position.z,isl5);
+    if(inJapan&&!inPyramid&&!timeState._warned){timeState._warned=true;showBanner('NIGHTFALL','Entering Japan',2200);}
+    const target=(inJapan&&!inPyramid)?1:0;
     if(Math.abs(timeState.t-target)>0.001){timeState.t+=Math.sign(target-timeState.t)*dt*0.32;timeState.t=TL.clamp(timeState.t,0,1);applyTimeOfDay(timeState.t);}
   }
 
@@ -347,48 +349,91 @@
   const iceGround=new THREE.MeshStandardMaterial({color:0xcfeeff,roughness:.32,metalness:.06,emissive:0x16384a,emissiveIntensity:.12});
   makeIsland(isl4,iceGround);
 
-  // isl5: desert pyramid island — rocky, mountainous, SE of Neo Tokyo
-  const isl5=[[455,95],[498,80],[548,82],[590,100],[615,135],[618,178],[600,208],[558,222],[505,225],[462,212],[440,178],[438,135]];
+  // isl5: PYRAMID ISLAND — massive desert island south of the graveyard (isl3), always daytime
+  const isl5=[[-18,206],[50,198],[135,193],[220,196],[295,210],[340,238],[355,282],[345,335],[315,375],[262,402],[185,412],[108,406],[48,386],[8,356],[-12,310],[-15,258]];
   const desertGround=new THREE.MeshStandardMaterial({color:0xb8935a,roughness:.96,metalness:.01});
   makeIsland(isl5,desertGround);
   (()=>{
-    const px=535,pz=155; // pyramid center
-    // Giant 4-sided pyramid landmark
-    const pyrMat=new THREE.MeshStandardMaterial({color:0xd4a85a,roughness:.9,flatShading:true});
-    const pyr=new THREE.Mesh(new THREE.ConeGeometry(40,55,4),pyrMat);
-    pyr.rotation.y=Math.PI/4;pyr.position.set(px,27.5,pz);pyr.castShadow=true;pyr.receiveShadow=true;world.add(pyr);addColl(pyr);
-    addWalk(px,pz,6,6,55.5); // walkable apex
-    addLabel('Pyramid',px,60,pz);markers.push({name:'Pyramid',x:px,z:pz});
-    // Pyramid edge glow strips
-    const stripMat=neon(0xffe45c,1.2);
-    for(let a=0;a<4;a++){const ang=a/4*Math.PI*2+Math.PI/4;const ex=Math.cos(ang)*28,ez=Math.sin(ang)*28;const strip=box(.6,62,.6,stripMat,px+ex,28.5,pz+ez);strip.rotation.y=ang;world.add(strip);}
-    // Rocky mountains scattered around the island
+    const px=175,pz=305; // pyramid center (island center)
+    const pyrMat=new THREE.MeshStandardMaterial({color:0xd4a85a,roughness:.88,flatShading:true});
+    const pyrDark=new THREE.MeshStandardMaterial({color:0xa87830,roughness:.92,flatShading:true});
+
+    // === GIANT PYRAMID ===
+    const pyr=new THREE.Mesh(new THREE.ConeGeometry(58,78,4),pyrMat);
+    pyr.rotation.y=Math.PI/4;pyr.position.set(px,39,pz);pyr.castShadow=true;pyr.receiveShadow=true;world.add(pyr);addColl(pyr);
+    // Pyramid stepped base tiers (3 layers)
+    for(const[tier,r,h,y] of [[1,68,5,2.5],[2,72,3.5,0.6]]){
+      const base=new THREE.Mesh(new THREE.BoxGeometry(r*1.42,h,r*1.42),pyrDark);base.position.set(px,y,pz);base.rotation.y=Math.PI/4;base.castShadow=true;world.add(base);addWalk(px,pz,r*1.4,r*1.4,y+h/2);
+    }
+    addLabel('Great Pyramid',px,85,pz);markers.push({name:'Great Pyramid',x:px,z:pz});
+    // Glowing edge strips up each corner
+    const stripMat=neon(0xffe45c,1.4);
+    for(let a=0;a<4;a++){const ang=a/4*Math.PI*2+Math.PI/4;const ex=Math.cos(ang)*40,ez=Math.sin(ang)*40;const strip=box(.5,82,.5,stripMat,px+ex,41,pz+ez);strip.rotation.y=ang;world.add(strip);}
+    // Capstone glow
+    world.add(box(2.5,4,2.5,neon(0xffcc00,3),px,79,pz));
+
+    // === OBELISKS flanking the pyramid ===
+    for(const[ox,oz] of [[px-75,pz-75],[px+75,pz-75],[px-75,pz+75],[px+75,pz+75],[px,pz-90],[px,pz+90],[px-90,pz],[px+90,pz]]){
+      if(!polyInside(ox,oz,isl5))continue;
+      const ob=box(4,32,4,pyrMat,ox,16.2,oz);world.add(ob);addColl(ob);
+      const tip=new THREE.Mesh(new THREE.ConeGeometry(2.4,7,4),pyrMat);tip.position.set(ox,33.5,oz);tip.rotation.y=Math.PI/4;world.add(tip);
+      world.add(box(5.5,.9,5.5,pyrDark,ox,.8,oz));
+      // glow cap on each obelisk
+      world.add(box(1,.8,1,neon(0xffaa00,2.2),ox,32.6,oz));
+    }
+
+    // === MOUNTAINS ringing the island perimeter ===
     const rockMat=new THREE.MeshStandardMaterial({color:0x8a6a3a,roughness:.97,flatShading:true});
-    const rockMat2=new THREE.MeshStandardMaterial({color:0x9a7a4a,roughness:.97,flatShading:true});
-    const mtnPositions=[[480,100],[560,95],[600,125],[615,165],[595,200],[555,215],[500,218],[460,200],[445,165],[450,125]];
-    for(const[mx,mz] of mtnPositions){
-      const h=rand(18,38),r=rand(8,18);
+    const rockMat2=new THREE.MeshStandardMaterial({color:0x7a5a2a,roughness:.97,flatShading:true});
+    const mtnPos=[[-10,215],[60,200],[145,196],[225,200],[305,215],[345,248],[356,290],[346,338],[318,374],[266,400],[190,410],[110,404],[48,385],[10,355],[-12,312],[-14,265]];
+    for(const[mx,mz] of mtnPos){
+      if(!polyInside(mx,mz,isl5))continue;
+      const h=rand(22,48),r=rand(10,22);
       const mt=new THREE.Mesh(new THREE.ConeGeometry(r,h,7),Math.random()>.5?rockMat:rockMat2);
       mt.position.set(mx,h/2,mz);mt.rotation.y=rand(0,Math.PI);mt.castShadow=true;world.add(mt);addColl(mt);
-      // snow caps on taller peaks
-      if(h>28){const cap=new THREE.Mesh(new THREE.ConeGeometry(r*.35,h*.22,7),new THREE.MeshStandardMaterial({color:0xe8e0d0,roughness:.9}));cap.position.set(mx,h+h*.06,mz);cap.rotation.y=rand(0,Math.PI);world.add(cap);}
+      if(h>32){const cap=new THREE.Mesh(new THREE.ConeGeometry(r*.32,h*.2,7),new THREE.MeshStandardMaterial({color:0xe4d8c0,roughness:.95}));cap.position.set(mx,h+h*.06,mz);cap.rotation.y=rand(0,Math.PI);world.add(cap);}
     }
-    // Sandy desert floor rocks/boulders
+    // Mid-island rocky ridge clusters (8 extra)
+    for(let i=0;i<8;i++){const mx=rand(60,295),mz=rand(230,380);if(!polyInside(mx,mz,isl5))continue;const h=rand(12,28),r=rand(6,14);const mt=new THREE.Mesh(new THREE.ConeGeometry(r,h,6),rockMat);mt.position.set(mx,h/2,mz);mt.rotation.y=rand(0,Math.PI);mt.castShadow=true;world.add(mt);addColl(mt);}
+
+    // === BOULDERS ===
     const boulderGeo=new THREE.DodecahedronGeometry(1,0);
-    for(let i=0;i<30;i++){const bx2=rand(445,615),bz2=rand(88,222);if(!polyInside(bx2,bz2,isl5))continue;const s=rand(1.2,3.8);const b=new THREE.Mesh(boulderGeo,rockMat);b.position.set(bx2,s*.4,bz2);b.scale.set(s,s*rand(.55,.85),s*rand(.7,1));b.rotation.set(rand(0,Math.PI),rand(0,Math.PI),rand(0,Math.PI));b.castShadow=true;world.add(b);}
-    // Desert obelisks flanking the pyramid
-    for(const[ox,oz] of [[px-55,pz-55],[px+55,pz-55],[px-55,pz+55],[px+55,pz+55]]){
-      if(!polyInside(ox,oz,isl5))continue;
-      const ob=box(3.5,28,3.5,pyrMat,ox,14.3,oz);world.add(ob);addColl(ob);
-      const tip=new THREE.Mesh(new THREE.ConeGeometry(2,6,4),pyrMat);tip.position.set(ox,29.5,oz);tip.rotation.y=Math.PI/4;world.add(tip);
-      world.add(box(4.5,.8,4.5,new THREE.MeshStandardMaterial({color:0xc8a040,roughness:.7}),ox,.75,oz));
+    for(let i=0;i<55;i++){const bx2=rand(-15,355),bz2=rand(195,415);if(!polyInside(bx2,bz2,isl5))continue;const s=rand(1.5,4.5);const b=new THREE.Mesh(boulderGeo,rockMat);b.position.set(bx2,s*.35,bz2);b.scale.set(s,s*rand(.5,.85),s*rand(.65,1));b.rotation.set(rand(0,Math.PI),rand(0,Math.PI),rand(0,Math.PI));b.castShadow=true;world.add(b);}
+
+    // === DESERT PATHS leading to pyramid ===
+    const pathMat=new THREE.MeshStandardMaterial({color:0xc8a060,roughness:.95});
+    // north path (bridge → pyramid)
+    const np=box(7,.15,90,pathMat,5,0.12,248);world.add(np);addWalk(5,248,7,90,.18);
+    // east path
+    world.add(box(7,.15,80,pathMat,240,0.12,pz));addWalk(240,pz,80,7,.18);
+    // west path
+    world.add(box(7,.15,80,pathMat,120,0.12,pz));addWalk(120,pz,80,7,.18);
+
+    // === BRIDGE from isl3 (graveyard, z=192) to isl5 (z=206) ===
+    const bMat=new THREE.MeshStandardMaterial({color:0xb89858,roughness:.9});
+    // main deck
+    const bdeck=box(9,.55,16,bMat,5,0.7,199);bdeck.receiveShadow=true;world.add(bdeck);addWalk(5,199,9,16,1.0);
+    // railings
+    for(const s of[-1,1]){world.add(box(.35,1.2,16,neon(0xffaa00,1.8),5+s*4.65,1.6,199));}
+    // support pillars
+    for(const bpz of[194,199,204]){world.add(box(1,2.4,1,bMat,-3.5,1.2,bpz));world.add(box(1,2.4,1,bMat,3.5,1.2,bpz));}
+    addLabel('Bridge to Pyramid Island',5,6,199);
+
+    // === AMMO CRATES on pyramid island ===
+    for(const[ax,az] of [[10,215],[px-40,pz],[px+40,pz],[220,305],[150,380]]){
+      if(polyInside(ax,az,isl5))dropPickup(ax,az,'ammo');
     }
-    // Causeway from Neo Tokyo (x~415) to pyramid island
-    const cwMat=new THREE.MeshStandardMaterial({color:0x9a8464,roughness:.96});
-    const cw=box(10,.4,55,cwMat,432,0.3,110);cw.receiveShadow=true;world.add(cw);addWalk(432,110,10,55,.5);
-    // neon border markers on causeway
-    for(const s of[-1,1]){world.add(box(.3,.9,55,neon(0xffe45c,1.6),432+s*5.1,.75,110));}
   })();
+
+  // === AMMO CRATES scattered across existing islands ===
+  // Harbor area
+  dropPickup(155,15,'ammo');dropPickup(190,-18,'ammo');
+  // Neo Tokyo / Japan district
+  dropPickup(310,0,'ammo');dropPickup(360,-20,'ammo');
+  // Ice castle bridge
+  dropPickup(170,-90,'ammo');
+  // Home island
+  dropPickup(20,20,'ammo');
 
   // Sprawl ground
   const SR={x0:430,x1:710,z0:-180,z1:180};
@@ -847,19 +892,20 @@
 
   /* ============================= PICKUPS ============================= */
   const pickups=[];
-  const EMOJI={life:'❤️',armor:'🛡️',boost:'✖️'};
+  const EMOJI={life:'❤️',armor:'🛡️',boost:'✖️',ammo:'📦'};
   function emojiTexture(emoji){const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');x.font='92px serif';x.textAlign='center';x.textBaseline='middle';x.fillText(emoji,64,70);const t=new THREE.CanvasTexture(c);return t;}
   function dropPickup(x,z,kind){
-    if(kind==='health')kind='life';if(kind==='ammo')kind='armor';
+    if(kind==='health')kind='life';
     const g=new THREE.Group();g.position.set(x,1.5,z);world.add(g);
-    const col=kind==='life'?0xff4d6d:(kind==='armor'?0x4db5ff:0xffe45c);
+    const col=kind==='life'?0xff4d6d:kind==='armor'?0x4db5ff:kind==='ammo'?0xffaa00:0xffe45c;
     const halo=new THREE.Mesh(new THREE.TorusGeometry(.62,.06,8,24),neon(col,2));halo.rotation.x=Math.PI/2;g.add(halo);
-    const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:emojiTexture(EMOJI[kind]),transparent:true,depthWrite:false}));spr.scale.set(1.6,1.6,1.6);g.add(spr);
+    const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:emojiTexture(EMOJI[kind]||EMOJI.boost),transparent:true,depthWrite:false}));spr.scale.set(1.6,1.6,1.6);g.add(spr);
     g.userData={kind,spin:rand(0,6)};pickups.push(g);
   }
   function updatePickups(dt){const pp=camera.position;for(let i=pickups.length-1;i>=0;i--){const p=pickups[i];p.userData.spin+=dt*2;p.rotation.y=p.userData.spin;p.position.y=1.5+Math.sin(p.userData.spin*1.5)*.22;if(p.position.distanceTo(pp)<2.6){const k=p.userData.kind;
     if(k==='life'){state.hp=Math.min(state.maxHp,state.hp+35);updateVitals();showBanner('❤️ +35 HP','',700);}
     else if(k==='armor'){state.armor=Math.min(state.maxArmor,state.armor+40);updateVitals();showBanner('🛡️ +40 ARMOR','',700);}
+    else if(k==='ammo'){WEAPONS.forEach(w=>{if(w.ammo!==Infinity)w.ammo=w.maxAmmo;});updateWeaponHud();showBanner('📦 AMMO REFILL','All weapons restocked',1000);}
     else{state.dmgMult=2;state.dmgMultTimer=12;updateBoostHud();showBanner('✖️2X DAMAGE','12 SECONDS',900);}
     world.remove(p);pickups.splice(i,1);sfx('switch');}}}
   function updateBoostHud(){const el=document.getElementById('boostTag');if(state.dmgMult>1&&state.dmgMultTimer>0){el.style.display='block';el.textContent='✖️2X DMG · '+Math.ceil(state.dmgMultTimer)+'s';}else{el.style.display='none';}}
