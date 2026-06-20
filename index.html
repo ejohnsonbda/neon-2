@@ -613,7 +613,7 @@
 
   /* ===== ICE CITY — western quarter of isl4 ===== */
   (()=>{
-    const BASE=2.9;
+    const BASE=0;
     const icW=new THREE.MeshStandardMaterial({color:0xc8e8ff,roughness:.28,metalness:.08,transparent:true,opacity:.91,emissive:0x1a4060,emissiveIntensity:.18});
     const icR=new THREE.MeshStandardMaterial({color:0xa0c8e0,roughness:.4,metalness:.04});
     const icD=new THREE.MeshStandardMaterial({color:0x90b8d8,roughness:.32,metalness:.06,transparent:true,opacity:.94,emissive:0x0e2840,emissiveIntensity:.15});
@@ -674,7 +674,6 @@
     igloo(75,-194,4.5);igloo(99,-197,5.5);igloo(122,-194,4.5);
     // frozen fountain at main intersection
     world.add(box(1.5,4,1.5,icD,99,BASE+2,-133));
-    world.add(new THREE.Mesh(new THREE.CylinderGeometry(4,5,1,16),icW));
     const ftn=new THREE.Mesh(new THREE.CylinderGeometry(4,5,1,16),icW);ftn.position.set(99,BASE+.5,-133);world.add(ftn);
     world.add(box(3.5,.2,3.5,neon(0x6fe9ff,1.6),99,BASE+1.05,-133));
     addLabel('Ice City',99,22,-133);
@@ -826,6 +825,7 @@
     bramble: {col:0xc6f23a,hp:95,  spd:4.0,dmg:12,rng:3.0,ranged:false,fly:false,flyH:0, score:160, sz:1.0, boss:false},
     treant:  {col:0x6fd83a,hp:300, spd:2.0,dmg:20,rng:22, ranged:true, fly:false,flyH:0, score:320, sz:1.6, boss:false,projDmg:14},
     twohead: {col:0xffb030,hp:180, spd:3.2,dmg:18,rng:3.2,ranged:false,fly:false,flyH:0, score:280, sz:1.3, boss:false},
+    frosty:  {col:0xff8c00,hp:90,  spd:2.4,dmg:0, rng:22, ranged:true, fly:false,flyH:0, score:220, sz:1.1, boss:false,projDmg:11},
   };
 
   function buildMesh(type,def){
@@ -1392,11 +1392,11 @@
       if(rnd()<nearBias){
         const ang=rand(0,Math.PI*2),dist=rand(18,48);
         const x=camera.position.x+Math.cos(ang)*dist,z=camera.position.z+Math.sin(ang)*dist;
-        const eligible=wave<6?SPAWN_ISLANDS.slice(0,3):SPAWN_ISLANDS;
+        const eligible=SPAWN_ISLANDS;
         if(eligible.some(s=>polyInside(x,z,s.poly))&&!golemBlocked(x,z,1.3)&&Math.hypot(x-camera.position.x,z-camera.position.z)>12)return{x,z};
         continue;
       }
-      const pool=wave<6?SPAWN_ISLANDS.slice(0,3):SPAWN_ISLANDS;
+      const pool=SPAWN_ISLANDS;
       const s=pick(pool);const x=rand(s.x0,s.x1),z=rand(s.z0,s.z1);
       if(!polyInside(x,z,s.poly))continue;
       if(golemBlocked(x,z,1.3))continue;
@@ -1412,7 +1412,7 @@
     const q=[];const budget=6+n*3;
     // Milestone boss waves at 20 / 40 / 60 / 80 / 100… (super apex spider at 40 & 80; boss otherwise)
     if(n%20===0){q.push((n%40===0)?'spider':'boss');}
-    let pts=budget;const pool=['grunt','grunt','runner','sapling','bramble','shooter','tank','dragon','treant','twohead'];
+    let pts=budget;const pool=['grunt','grunt','runner','sapling','bramble','shooter','tank','dragon','treant','twohead','frosty'];
     while(pts>0){const t=pick(n<3?['grunt','runner','sapling','bramble']:pool);q.push(t);pts-= (t==='tank'||t==='treant'||t==='dragon')?3:1;}
     // a few neutral wanderers for atmosphere
     return {q,neutral:Math.min(4,1+Math.floor(n/2))};
@@ -1825,7 +1825,7 @@
             while(tries<30&&(!polyInside(sp.x,sp.z,s.poly)||golemBlocked(sp.x,sp.z,1.3)||Math.hypot(sp.x-camera.position.x,sp.z-camera.position.z)<12));
           } else { const ang=rand(0,Math.PI*2),d=rand(18,40);sp={x:camera.position.x+Math.cos(ang)*d,z:camera.position.z+Math.sin(ang)*d}; }
           // wave-weighted pool
-          const pool=endlessWaveN[ci<0?0:ci]<3?['grunt','runner','sapling']:ci===5?['twohead','twohead','grunt','runner','tank']:['grunt','runner','tank','shooter','dragon','sapling','bramble','treant'];
+          const pool=endlessWaveN[ci<0?0:ci]<3?['grunt','runner','sapling']:ci===5?['twohead','twohead','grunt','runner','tank']:ci===4?['frosty','frosty','grunt','runner','shooter']:['grunt','runner','tank','shooter','dragon','sapling','bramble','treant'];
           const g=makeGolem(sp.x,sp.z,pick(pool));if(g)g.userData.hostile=true;
           updateHostileCount();
           endlessSpawnTimer=0.5+rnd()*0.4;

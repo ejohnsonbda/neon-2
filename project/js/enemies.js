@@ -34,7 +34,9 @@ const EnemyFactory = {
     bramble: { hp: 95,  speed: 4.0, dmg: 12, scale: 1.0,  glow: 0xc6f23a, melee: true,  score: 160 },
     treant:  { hp: 300, speed: 2.0, dmg: 20, scale: 1.6,  glow: 0x6fd83a, ranged: true, range: 22, projDmg: 14, fireRate: 1900, score: 320 },
     // ---- desert island golems ----
-    twohead: { hp: 180, speed: 3.2, dmg: 18, scale: 1.3,  glow: 0xffb030, melee: true,  score: 280 }
+    twohead: { hp: 180, speed: 3.2, dmg: 18, scale: 1.3,  glow: 0xffb030, melee: true,  score: 280 },
+    // ---- ice city golems ----
+    frosty:  { hp: 90,  speed: 2.4, dmg: 0,  scale: 1.1,  glow: 0xff8c00, ranged: true, range: 22, projDmg: 11, fireRate: 2000, score: 220 }
   },
 
   _skin: 'rock',
@@ -136,6 +138,7 @@ const EnemyFactory = {
       case 'treant':  g = this._treant(); break;
       case 'boss':    g = this._boss(); break;
       case 'twohead': g = this._twohead(); break;
+      case 'frosty':  g = this._frosty(); break;
       default:        g = this._grunt(); break;
     }
     g.userData.skin = this._skin;
@@ -688,6 +691,58 @@ const EnemyFactory = {
     grp.userData.parts = { legs: [legL, legR], arms: [armUL, armUR, armLL, armLR], head: null };
     grp.userData.cores = cores;
     grp.userData.eyeHeight = 3.9;
+    return grp;
+  },
+
+  // ---- FROSTY: snowman ice golem, shoots orange carrot bolts ----
+  _frosty() {
+    const g = _geos();
+    const grp = new THREE.Group();
+    const cores = [];
+
+    const snowMat  = new THREE.MeshStandardMaterial({ color: 0xe8f4ff, roughness: 0.7,  metalness: 0.12, emissive: 0x1a4060, emissiveIntensity: 0.15, flatShading: true });
+    const snowDark = new THREE.MeshStandardMaterial({ color: 0xb8d8f0, roughness: 0.75, metalness: 0.08, flatShading: true });
+    const carrotMat= new THREE.MeshStandardMaterial({ color: 0xff6600, roughness: 0.8,  emissive: 0xff3300, emissiveIntensity: 0.4, flatShading: true });
+    const eyeMat   = new THREE.MeshStandardMaterial({ color: 0x111128, roughness: 0.9,  flatShading: true });
+
+    // lower snowball
+    this._chunk(grp, snowMat,  0, 0.55, 0,    0.62, 0.56, 0.62, 0, 0, 0, g.dod);
+    // middle snowball
+    this._chunk(grp, snowMat,  0, 1.20, 0,    0.46, 0.44, 0.46, 0, 0, 0, g.ico);
+    // head snowball
+    const head = this._chunk(grp, snowMat, 0, 1.82, 0.05, 0.36, 0.36, 0.34, 0, 0, 0, g.ico);
+
+    // carrot nose (orange cone pointing forward)
+    const nose = new THREE.Mesh(g.cone, carrotMat);
+    nose.position.set(0, 1.82, 0.48);
+    nose.rotation.x = Math.PI / 2;
+    nose.scale.set(0.08, 0.28, 0.08);
+    grp.add(nose);
+    cores.push(carrotMat);
+
+    // coal eyes
+    this._chunk(grp, eyeMat, -0.12, 1.88, 0.38, 0.07, 0.05, 0.04, 0, 0, 0, g.oct);
+    this._chunk(grp, eyeMat,  0.12, 1.88, 0.38, 0.07, 0.05, 0.04, 0, 0, 0, g.oct);
+    // mouth buttons
+    for (let i = -1; i <= 1; i++) this._chunk(grp, eyeMat, i * 0.1, 1.72, 0.42, 0.04, 0.03, 0.03, 0, 0, 0, g.oct);
+
+    // stick arms
+    const armL = new THREE.Mesh(g.cyl, snowDark);
+    armL.position.set(-0.7, 1.22, 0); armL.rotation.z = Math.PI / 3; armL.scale.set(0.07, 0.6, 0.07);
+    grp.add(armL);
+    const armR = new THREE.Mesh(g.cyl, snowDark);
+    armR.position.set(0.7, 1.22, 0); armR.rotation.z = -Math.PI / 3; armR.scale.set(0.07, 0.6, 0.07);
+    grp.add(armR);
+
+    // glowing ice crystal crown
+    const iceMat = this._eyeMat(0x88ccff);
+    iceMat.emissiveIntensity = 1.5;
+    cores.push(iceMat);
+    this._chunk(grp, iceMat, 0, 2.22, 0, 0.08, 0.2, 0.08, 0, 0, 0, g.oct);
+
+    grp.userData.parts = { legs: [], arms: [armL, armR], head };
+    grp.userData.cores = cores;
+    grp.userData.eyeHeight = 1.9;
     return grp;
   }
 };
