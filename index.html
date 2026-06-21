@@ -161,6 +161,7 @@
 <audio id="sfx_pulse" preload="auto" src="project/uploads/u_62htdrvg4y-gun-shot-359196.mp3"></audio>
 <audio id="sfx_thunder" preload="auto" src="project/uploads/patricksilvey-weather-lightning-2-464187.mp3"></audio>
 <audio id="sfx_push" preload="auto" src="project/uploads/freesound_community-magic-strike-5856.mp3"></audio>
+<audio id="sfx_push_full" preload="auto" src="project/uploads/allmity_push.mp3"></audio>
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 <script>window.__NEON_LOW_MEMORY=true;</script>
 <script src="project/js/enemies.js"></script>
@@ -1543,7 +1544,7 @@
     const fwd=new THREE.Vector3();camera.getWorldDirection(fwd);
     for(const g of golems){if(!g.userData.alive)continue;const toG=new THREE.Vector3().subVectors(g.position.clone().setY(cp.y),cp);const dist=toG.length();if(dist>range+5)continue;const dot=toG.clone().normalize().dot(fwd);if(dot>.15||dist<4){damageGolem(g,dmg);g.position.addScaledVector(toG.clone().normalize(),dist<4?10:6);}}
     const fl=document.getElementById('fpFlash');fl.style.transition='none';fl.style.opacity=Math.min(1,.4+fpCharge);requestAnimationFrame(()=>{fl.style.transition='opacity .5s ease';fl.style.opacity='0';});
-    recoil=.2;sfx('push');fpCharge=0;document.getElementById('fpFill').style.width='0%';
+    recoil=.2;sfx(fpCharge>=0.99?'push_full':'push');fpCharge=0;document.getElementById('fpFill').style.width='0%';
   }
   function muzzleFlash(){}
 
@@ -1783,14 +1784,15 @@
     plasma: 'project/uploads/voicebosch-laser-gun-174976.mp3',
     pulse:  'project/uploads/u_62htdrvg4y-gun-shot-359196.mp3',
     thunder:'project/uploads/patricksilvey-weather-lightning-2-464187.mp3',
-    push:   'project/uploads/freesound_community-magic-strike-5856.mp3'
+    push:      'project/uploads/freesound_community-magic-strike-5856.mp3',
+    push_full: 'project/uploads/allmity_push.mp3'
   };
-  const SAMPLE_VOL={shot:.55,smg:.5,blast:.7,plasma:.6,pulse:.45,thunder:.85,push:.7};
-  const SAMPLE_GAP={shot:.05,smg:.12,blast:.0,plasma:.0,pulse:.05,thunder:.0,push:.0};
+  const SAMPLE_VOL={shot:.55,smg:.5,blast:.7,plasma:.6,pulse:.45,thunder:.85,push:.7,push_full:.9};
+  const SAMPLE_GAP={shot:.05,smg:.12,blast:.0,plasma:.0,pulse:.05,thunder:.0,push:.0,push_full:.0};
   // how long each one-shot is allowed to ring before it's faded+stopped (keeps rapid fire from
   // stacking dozens of multi-second clips = big CPU + audio-mush win)
-  const SAMPLE_DUR={shot:.35,smg:.32,blast:.7,plasma:.6,pulse:.16,thunder:1.6,push:1.2};
-  const SAMPLE_EL={shot:'sfx_shot',smg:'sfx_smg',blast:'sfx_blast',plasma:'sfx_plasma',pulse:'sfx_pulse',thunder:'sfx_thunder',push:'sfx_push'};
+  const SAMPLE_DUR={shot:.35,smg:.32,blast:.7,plasma:.6,pulse:.16,thunder:1.6,push:1.2,push_full:3.0};
+  const SAMPLE_EL={shot:'sfx_shot',smg:'sfx_smg',blast:'sfx_blast',plasma:'sfx_plasma',pulse:'sfx_pulse',thunder:'sfx_thunder',push:'sfx_push',push_full:'sfx_push_full'};
   const sampleBuf={},sampleLast={};
   function loadSamples(){
     if(!audioCtx)return;
