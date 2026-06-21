@@ -341,9 +341,9 @@
   }
   makeIsland(isl0);makeIsland(isl1);
   makeIsland(isl2,new THREE.MeshStandardMaterial({map:TX.grass,color:0x8898a0,roughness:.92}));
-  // isl3: somber graveyard island to the south
-  const isl3=[[-52,108],[-28,98],[6,96],[40,100],[60,116],[66,146],[56,176],[24,192],[-14,192],[-46,178],[-62,150],[-60,124]];
-  makeIsland(isl3,new THREE.MeshStandardMaterial({map:TX.grass,color:0x3f5142,roughness:.95}));
+  // isl3: BLACKTHORN — gothic horror city island
+  const isl3=[[-128,122],[-98,98],[-42,88],[10,86],[65,90],[115,100],[148,118],[158,142],[154,168],[128,196],[68,204],[8,204],[-28,200],[-75,190],[-112,172],[-130,148]];
+  makeIsland(isl3,new THREE.MeshStandardMaterial({color:0x252a27,roughness:.97,metalness:.01}));
   // isl4: massive frozen island to the north (ice castle)
   const isl4=[[64,-150],[92,-205],[140,-242],[196,-244],[240,-214],[260,-168],[252,-122],[214,-94],[160,-86],[108,-98],[74,-122]];
   const iceGround=new THREE.MeshStandardMaterial({color:0xcfeeff,roughness:.32,metalness:.06,emissive:0x16384a,emissiveIntensity:.12});
@@ -483,37 +483,288 @@
   mkBldg({name:'Workshop',x:-19,z:-34,w:25,d:11,h:4.2});
   mkBldg({name:'Caretaker',x:47,z:15,w:18,d:15,h:4.6,type:'guest'});
 
-  /* ===== GRAVEYARD ISLAND: churches + graves + bridge ===== */
-  mkBldg({name:'Chapel of Ash',x:-12,z:134,w:14,d:30,h:6.4,type:'church'});
-  mkBldg({name:'Old Stone Church',x:30,z:162,w:12,d:24,h:5.8,type:'church'});
-  mkBldg({name:'Mortuary',x:-40,z:158,w:13,d:12,h:4.4});
+  /* ===== BLACKTHORN: Gothic Horror City (isl3 — expanded ×3) ===== */
   (()=>{
-    // steeple on the chapel
-    const sp=new THREE.Group();sp.position.set(-12,0,118);world.add(sp);
-    sp.add(wallB(4,12,4,0,6,0,M.stone));
-    const spire=new THREE.Mesh(new THREE.ConeGeometry(3.2,7,4),M.roofS);spire.position.set(0,15.5,0);world.add(spire);
-    sp.add(box(.5,3,.5,M.darkWood,0,13.5,0));sp.add(box(2.2,.5,.5,M.darkWood,0,13.2,0));
-  })();
-  (()=>{
-    // graves: a field of leaning headstones and crosses
-    const gy=new THREE.Group();world.add(gy);
-    const stoneMat=new THREE.MeshStandardMaterial({color:0x9aa0a7,roughness:.96});
-    const crossMat=new THREE.MeshStandardMaterial({color:0x767c83,roughness:.92});
-    for(let i=0;i<60;i++){
-      const gx=rand(-46,54),gz=rand(110,188);
-      if(!polyInside(gx,gz,isl3))continue;
-      if(Math.abs(gx+12)<9&&Math.abs(gz-134)<17)continue; // keep chapel clear
-      if(Math.abs(gx-30)<8&&Math.abs(gz-162)<14)continue;
-      if(rnd()<.55){const s=box(.62,rand(.9,1.3),.18,stoneMat,gx,.55,gz);s.rotation.set(rand(-.12,.12),rand(-.4,.4),rand(-.14,.14));gy.add(s);}
-      else{const cg=new THREE.Group();cg.position.set(gx,0,gz);cg.rotation.y=rand(-.4,.4);cg.rotation.z=rand(-.1,.1);cg.add(box(.16,1.45,.16,crossMat,0,.72,0));cg.add(box(.72,.16,.16,crossMat,0,1.05,0));gy.add(cg);}
+    const gS=new THREE.MeshStandardMaterial({color:0x3a3d42,roughness:.94,metalness:.04,flatShading:true});
+    const gD=new THREE.MeshStandardMaterial({color:0x1e2026,roughness:.96,flatShading:true});
+    const gR=new THREE.MeshStandardMaterial({color:0x18191d,roughness:.9});
+    const cob=new THREE.MeshStandardMaterial({color:0x2c2e33,roughness:.97});
+    const tim=new THREE.MeshStandardMaterial({color:0x2a1a0e,roughness:.9});
+    const grv=new THREE.MeshStandardMaterial({color:0x8a8e95,roughness:.96});
+    const crs=new THREE.MeshStandardMaterial({color:0x68696e,roughness:.93});
+    const purp=neon(0x6600cc,1.8);
+    const blud=neon(0xbb0800,1.5);
+    const gren=neon(0x00aa33,1.1);
+    const trch=neon(0xff7700,1.3);
+
+    // ── COBBLESTONE STREETS ──
+    world.add(box(11,.16,130,cob,12,.08,143));addWalk(12,143,11,130,.2);   // Main Ave N-S
+    world.add(box(268,.16,11,cob,15,.08,140));addWalk(15,140,268,11,.2);   // Gallows Cross E-W
+    world.add(box(9,.16,100,cob,100,.08,147));addWalk(100,147,9,100,.2);   // East Lane N-S
+    world.add(box(9,.16,100,cob,-78,.08,147));addWalk(-78,147,9,100,.2);   // West Lane N-S
+    world.add(box(58,.1,44,cob,12,.05,138));addWalk(12,138,58,44,.12);     // Cathedral Square paving
+
+    // ── GRAND CATHEDRAL OF BLACKTHORN ──
+    (()=>{
+      const CX=12,CZ=109;
+      const cg=new THREE.Group();cg.position.set(CX,0,CZ);world.add(cg);
+      const nH=22;
+      cg.add(box(26,.3,52,gS,0,.15,0));addWalk(CX,CZ,24,50,.35);
+      // Nave walls
+      cg.add(wallB(26,nH,.6,0,nH/2,-26,gS));
+      cg.add(wallB(26,nH,.6,0,nH/2,26,gS));
+      cg.add(wallB(.6,nH,52,-13,nH/2,0,gS));
+      cg.add(wallB(.6,nH,52,13,nH/2,0,gS));
+      // Lancet window glow slits
+      for(const wz of[-18,-7,4,15]){
+        cg.add(box(.1,9,1.1,purp,-13,14,wz));
+        cg.add(box(.1,9,1.1,purp,13,14,wz));
+      }
+      // Rose window on entrance (north face)
+      cg.add(box(.1,5.5,5.5,purp,0,19,-26));
+      // Entrance arch frame
+      for(const ex of[-5,5])cg.add(box(.28,7,.9,gD,ex,7,-26.6));
+      cg.add(box(12,.5,.9,gD,0,11,-26.6));
+      // Main crossing tower
+      const ctw=box(10,16,10,gD,0,nH+8,-8);cg.add(ctw);addColl(ctw);
+      const csp=new THREE.Mesh(new THREE.ConeGeometry(7.5,32,6),gR);csp.position.set(0,nH+24,-8);csp.rotation.y=Math.PI/6;cg.add(csp);
+      cg.add(box(1,10,1,purp,0,nH+42,-8));
+      // Twin entrance towers
+      for(const tx of[-14,14]){
+        const etw=box(8,30,8,gD,tx,15,-24);cg.add(etw);addColl(etw);
+        const esp=new THREE.Mesh(new THREE.ConeGeometry(5.5,18,4),gR);esp.position.set(tx,34,-24);esp.rotation.y=Math.PI/4;cg.add(esp);
+        cg.add(box(1,6,1,purp,tx,46,-24));
+        for(let a=0;a<4;a++){const an=a/4*Math.PI*2;cg.add(box(1.2,2,1.2,gS,tx+Math.cos(an)*3.5,30.5,-24+Math.sin(an)*3.5));}
+      }
+      // Flying buttresses on nave sides
+      for(const[bx,bz] of[[-14,-17],[14,-17],[-14,-4],[14,-4],[-14,9],[14,9]]){
+        const fb=box(3,.7,14,gS,bx,16,bz);fb.rotation.z=Math.sign(-bx)*.26;cg.add(fb);
+      }
+      // South apse bulk
+      cg.add(box(20,14,.8,gS,0,7,26));
+      // Gothic roof
+      const r=gabledRoof(28,54,14,gR);r.position.set(CX,nH,CZ);r.userData.roof=true;roofGroup.add(r);
+      addLabel('Cathedral of Blackthorn',CX,48,CZ);markers.push({name:'Cathedral of Blackthorn',x:CX,z:CZ});
+    })();
+
+    // ── GOTHIC TOWNHOUSE HELPER ──
+    function gHouse(hx,hz,hw,hd,hh,lbl){
+      const dw=1.6,dh=2.3,sw=(hw-dw)/2;
+      world.add(box(hw,.2,hd,gS,hx,.1,hz));
+      if(sw>0.3){world.add(wallB(sw,hh,.4,hx-(dw/2+sw/2),hh/2+.2,hz-hd/2,gS));world.add(wallB(sw,hh,.4,hx+(dw/2+sw/2),hh/2+.2,hz-hd/2,gS));}
+      world.add(wallB(hw,hh-dh,.4,hx,dh+(hh-dh)/2+.2,hz-hd/2,gS));
+      world.add(wallB(hw,hh,.4,hx,hh/2+.2,hz+hd/2,gS));
+      world.add(wallB(.4,hh,hd,hx-hw/2,hh/2+.2,hz,gS));
+      world.add(wallB(.4,hh,hd,hx+hw/2,hh/2+.2,hz,gS));
+      world.add(box(hw*.65,.14,.2,tim,hx,hh*.62,hz-hd/2-.22));
+      world.add(box(hw*.65,.14,.2,tim,hx,hh*.35,hz-hd/2-.22));
+      const wc=Math.max(1,Math.floor(hw/4));
+      for(let i=0;i<wc;i++){const wx=hx-hw/2+(i+1)*hw/(wc+1);world.add(box(.1,3,.65,purp,wx,hh*.56,hz-hd/2-.2));world.add(box(.1,3,.65,purp,wx,hh*.56,hz+hd/2+.2));}
+      const rr=gabledRoof(hw+.9,hd+.9,hh*.58,gR);rr.position.set(hx,hh+.4,hz);rr.userData.roof=true;roofGroup.add(rr);
+      addWalk(hx,hz,hw-1,hd-1,.35);
+      if(lbl){addLabel(lbl,hx,hh+4.5,hz);markers.push({name:lbl,x:hx,z:hz});}
     }
-    // low perimeter wall posts
-    for(let a=0;a<14;a++){const ang=a/14*Math.PI*2;const px=2+Math.cos(ang)*52,pz=148+Math.sin(ang)*40;if(polyInside(px,pz,isl3))gy.add(box(.5,1.4,.5,M.stone,px,.7,pz));}
-    addLabel('Graveyard',2,7,150);
+
+    // ── NORTH-WEST BLOCK (between west lane and main ave) ──
+    gHouse(-48,112,8,12,8,"Undertaker's Lodge");
+    gHouse(-60,112,8,12,9,"Widow's Terrace");
+    gHouse(-70,112,8,12,8,null);
+    gHouse(-48,127,8,11,8,null);
+    gHouse(-60,127,8,11,9,"Inquisitor's Rest");
+    gHouse(-70,127,8,11,8,null);
+
+    // ── NORTH-EAST BLOCK (main ave to east lane) ──
+    gHouse(40,112,8,12,9,"Raven & Skull");
+    gHouse(52,112,8,12,8,null);
+    gHouse(40,127,8,11,8,null);
+    gHouse(52,127,8,11,9,null);
+
+    // ── EAST BLOCK (east of east lane, north) ──
+    gHouse(112,111,10,13,9,"Night Watch Inn");
+    gHouse(124,111,9,13,8,null);
+    gHouse(136,111,9,12,8,null);
+
+    // ── SOUTH-WEST BLOCK (main ave to west lane, south) ──
+    gHouse(-48,156,8,12,9,null);
+    gHouse(-60,156,8,12,8,"Plague Doctor");
+    gHouse(-68,156,8,11,8,null);
+    gHouse(-48,170,8,12,8,null);
+    gHouse(-60,170,8,11,9,null);
+    gHouse(-68,170,8,11,8,null);
+
+    // ── SOUTH-EAST BLOCK (main ave east, south) ──
+    gHouse(40,155,8,12,9,null);
+    gHouse(52,155,8,12,8,"Seer's Chamber");
+    gHouse(40,169,8,11,8,null);
+    gHouse(52,169,8,11,8,null);
+
+    // ── FAR EAST BLOCK (east of east lane, south) ──
+    gHouse(112,156,10,13,9,"Bone Market");
+    gHouse(124,156,9,13,8,null);
+    gHouse(136,156,9,12,8,null);
+    gHouse(112,171,10,12,9,null);
+    gHouse(124,171,9,12,8,null);
+
+    // ── THE HANGED MAN TAVERN (west of west lane, north zone) ──
+    (()=>{
+      const TX=-102,TZ=118,TW=22,TD=20,TH=9;
+      world.add(box(TW,.2,TD,gS,TX,.1,TZ));addWalk(TX,TZ,TW-1,TD-1,.35);
+      world.add(wallB(TW,TH,.5,TX,TH/2+.2,TZ-TD/2,gS));
+      world.add(wallB(TW,TH,.5,TX,TH/2+.2,TZ+TD/2,gS));
+      world.add(wallB(.5,TH,TD,TX-TW/2,TH/2+.2,TZ,gS));
+      world.add(wallB(.5,TH,TD,TX+TW/2,TH/2+.2,TZ,gS));
+      for(const hz of[112,118,124])for(const hx of[TX-TW/2-.2,TX+TW/2+.2])world.add(box(.1,3.5,.8,purp,hx,TH*.6,hz));
+      for(const hz of[112,118,124])world.add(box(.1,3.5,.8,purp,TX,TH*.6,hz-TD/2-.2));
+      const rr=gabledRoof(TW+1,TD+1,5,gR);rr.position.set(TX,TH+.4,TZ);rr.userData.roof=true;roofGroup.add(rr);
+      // Hanging tavern sign
+      world.add(box(.15,4,.4,tim,TX+TW/2+.3,6,TZ-TD/2+2));
+      world.add(box(4,.15,.4,tim,TX+TW/2+2.2,8.3,TZ-TD/2+2));
+      world.add(box(3.2,.18,3.2,blud,TX+TW/2+2.2,7.2,TZ-TD/2+2));
+      // Torch sconces
+      for(const[sx,sz] of[[TX-TW/2,TZ-TD/2],[TX+TW/2,TZ-TD/2],[TX-TW/2,TZ+TD/2],[TX+TW/2,TZ+TD/2]]){
+        world.add(box(.4,1.2,.4,gD,sx,6,sz));world.add(box(.65,.65,.65,trch,sx,7,sz));
+      }
+      addLabel("The Hanged Man",TX,TH+5,TZ);markers.push({name:"The Hanged Man",x:TX,z:TZ});
+    })();
+
+    // ── APOTHECARY (east of east lane) ──
+    gHouse(132,140,14,18,7,"Apothecary");
+    world.add(box(7,.3,.25,gren,132,8.5,131.5));
+
+    // ── BLACKTHORN MANOR (west of west lane, south zone) ──
+    (()=>{
+      const MX=-102,MZ=168,MW=28,MD=26,MH=10;
+      world.add(box(MW,.2,MD,gS,MX,.1,MZ));addWalk(MX,MZ,MW-2,MD-2,.35);
+      world.add(wallB(MW,MH,.6,MX,MH/2+.2,MZ-MD/2,gS));
+      world.add(wallB(MW,MH,.6,MX,MH/2+.2,MZ+MD/2,gS));
+      world.add(wallB(.6,MH,MD,MX-MW/2,MH/2+.2,MZ,gS));
+      world.add(wallB(.6,MH,MD,MX+MW/2,MH/2+.2,MZ,gS));
+      const rr=gabledRoof(MW+1,MD+1,6,gR);rr.position.set(MX,MH+.4,MZ);rr.userData.roof=true;roofGroup.add(rr);
+      // Manor gate pillars
+      for(const mx2 of[MX-10,MX+10]){
+        world.add(wallB(2.5,5.5,2.5,mx2,2.75,MZ-MD/2-3,gD));
+        world.add(box(3,.6,3,gS,mx2,5.8,MZ-MD/2-3));
+        world.add(box(.8,.8,.8,blud,mx2,6.6,MZ-MD/2-3));
+      }
+      world.add(box(MW*.72,.25,.3,gD,MX,5.5,MZ-MD/2-3));
+      for(const hz of[MZ-MD/2+3,MZ,MZ+MD/2-3])for(const hx of[MX-MW/2-.2,MX+MW/2+.2])world.add(box(.1,4,.9,purp,hx,MH*.55,hz));
+      addLabel("Blackthorn Manor",MX,MH+5,MZ);markers.push({name:"Blackthorn Manor",x:MX,z:MZ});
+    })();
+
+    // ── CHAPEL OF MOURNING (south district) ──
+    (()=>{
+      const CX2=-10,CZ2=186;
+      const cg2=new THREE.Group();cg2.position.set(CX2,0,CZ2);world.add(cg2);
+      const cH=9;
+      cg2.add(box(14,.2,28,gS,0,.1,0));addWalk(CX2,CZ2,12,26,.35);
+      cg2.add(wallB(14,cH,.5,0,cH/2+.2,-14,gS));
+      cg2.add(wallB(14,cH,.5,0,cH/2+.2,14,gS));
+      cg2.add(wallB(.5,cH,28,-7,cH/2+.2,0,gS));
+      cg2.add(wallB(.5,cH,28,7,cH/2+.2,0,gS));
+      for(const wz of[-9,-2,5])cg2.add(box(.1,5,.9,purp,-7,cH*.6,wz));
+      // Steeple
+      const stg=new THREE.Group();stg.position.set(0,0,-16);cg2.add(stg);
+      stg.add(wallB(5,15,5,0,7.5,0,gD));
+      const sp=new THREE.Mesh(new THREE.ConeGeometry(4,12,4),gR);sp.position.set(0,19,0);sp.rotation.y=Math.PI/4;stg.add(sp);
+      stg.add(box(1,5,1,purp,0,26,0));
+      stg.add(box(.4,3,.4,gD,0,14,0));stg.add(box(2.6,.4,.4,gD,0,13.5,0));
+      const rr=gabledRoof(16,30,6,gR);rr.position.set(CX2,cH+.4,CZ2);rr.userData.roof=true;roofGroup.add(rr);
+      addLabel("Chapel of Mourning",CX2,22,CZ2);markers.push({name:"Chapel of Mourning",x:CX2,z:CZ2});
+    })();
+
+    // ── FREESTANDING BELL TOWER ──
+    world.add(wallB(7,28,7,-32,14,116,gD));
+    world.add(box(9,1.2,9,gS,-32,28.6,116));
+    world.add(box(7,.8,2,gD,-32,29.4,113.5));
+    world.add(box(7,.8,2,gD,-32,29.4,118.5));
+    world.add(box(2,.8,7,gD,-35,29.4,116));
+    world.add(box(2,.8,7,gD,-29,29.4,116));
+    (()=>{const bsp=new THREE.Mesh(new THREE.ConeGeometry(5.5,16,4),gR);bsp.position.set(-32,35,116);bsp.rotation.y=Math.PI/4;world.add(bsp);})();
+    world.add(box(1,6,1,purp,-32,44,116));
+    addLabel("Bell Tower",-32,46,116);
+
+    // ── GALLOWS SQUARE ──
+    world.add(box(20,.1,20,cob,44,0.04,112));addWalk(44,112,20,20,.12);
+    world.add(box(1.2,5.5,1.2,tim,38,2.75,108));
+    world.add(box(1.2,5.5,1.2,tim,38,2.75,115));
+    world.add(box(1.2,.8,8.4,tim,38,5.6,111.5));
+    world.add(box(.12,2.8,.12,tim,38,4.5,111));
+    world.add(box(.7,.7,.7,tim,38,3.4,111));
+    addLabel("Gallows Square",44,7.5,112);
+
+    // ── MARKET CROSS (center of Gallows Cross street) ──
+    world.add(box(4.5,.8,4.5,gD,12,.4,140));
+    world.add(box(1.5,7,1.5,gS,12,3.9,140));
+    world.add(box(5,.5,.8,gS,12,6.8,140));
+    world.add(box(.8,.5,3.5,gS,12,6.8,140));
+    world.add(box(.8,2.5,.8,purp,12,8.8,140));
+
+    // ── IRON FENCE AROUND CATHEDRAL SQUARE (decorative) ──
+    for(let fx=-26;fx<=27;fx+=3.5)for(const fz of[115,161])world.add(box(.4,2.4,.4,gD,12+fx,1.2,fz));
+    for(let fz=116;fz<=160;fz+=3.5)for(const fx of[-26.5,27.5])world.add(box(.4,2.4,.4,gD,12+fx,1.2,fz));
+    for(const fx of[-8,8]){world.add(box(1.2,3.8,1.2,gS,12+fx,1.9,115));world.add(box(1.6,.6,1.6,gD,12+fx,4,115));world.add(box(.8,.8,.8,purp,12+fx,4.7,115));}
+
+    // ── STREET LAMPS ──
+    for(const[lx,lz] of[[12,100],[12,120],[12,160],[12,182],[-78,120],[-78,160],[100,120],[100,160],[-102,109],[-102,128],[44,127],[44,155],[80,127],[80,155]]){
+      world.add(box(.4,4.5,.4,gD,lx,2.25,lz));
+      world.add(box(2.5,.3,.3,gD,lx+1.1,4.4,lz));
+      world.add(box(.7,.7,.7,trch,lx+1.8,4.7,lz));
+    }
+
+    // ── CITY ENTRY GATE (north perimeter wall) ──
+    for(const wx of[-22,-34,-46,-58,-70,-82,-94])world.add(wallB(10,3.5,1.5,wx,1.75,97,gS));
+    for(const wx of[34,46,58,70,82,94,106])world.add(wallB(10,3.5,1.5,wx,1.75,97,gS));
+    world.add(wallB(3,6,3,3,3,96,gD));
+    world.add(wallB(3,6,3,21,3,96,gD));
+    world.add(box(20,.7,3,gD,12,6.5,96));
+    world.add(box(.9,2.5,.9,purp,3,7.6,96));
+    world.add(box(.9,2.5,.9,purp,21,7.6,96));
+    world.add(box(14,.6,14,gD,12,.3,92));addWalk(12,92,14,14,.65);
+
+    // ── EXPANDED GRAVEYARD ──
+    (()=>{
+      const gy=new THREE.Group();world.add(gy);
+      for(let i=0;i<150;i++){
+        const gx=rand(-118,155),gz=rand(88,202);
+        if(!polyInside(gx,gz,isl3))continue;
+        if(Math.abs(gx-12)<8)continue;
+        if(Math.abs(gz-140)<7&&Math.abs(gx-15)<140)continue;
+        if(Math.abs(gx-12)<35&&Math.abs(gz-120)<34)continue;
+        if(gx>-40&&gx<-20&&gz>108&&gz<130)continue;
+        if(rnd()<.58){
+          const s=box(.68,rand(.9,1.6),.2,grv,gx,.55,gz);
+          s.rotation.set(rand(-.14,.14),rand(-.5,.5),rand(-.18,.18));gy.add(s);
+        } else {
+          const gcg=new THREE.Group();gcg.position.set(gx,0,gz);gcg.rotation.y=rand(-.45,.45);gcg.rotation.z=rand(-.1,.1);
+          gcg.add(box(.18,1.6,.18,crs,0,.8,0));gcg.add(box(.85,.18,.18,crs,0,1.15,0));gy.add(gcg);
+        }
+      }
+      // Mausoleums
+      function maus(mx,mz,lbl){
+        world.add(wallB(10,8,12,mx,4,mz,gD));
+        const mr=new THREE.Mesh(new THREE.ConeGeometry(8,6,4),gR);mr.position.set(mx,9.5,mz);mr.rotation.y=Math.PI/4;world.add(mr);
+        world.add(box(13,.6,15,gS,mx,.3,mz));
+        world.add(box(1.9,3.8,.4,gD,mx,1.9,mz-6.2));
+        world.add(box(2.6,.5,.4,blud,mx,4,mz-6.2));
+        world.add(box(.8,5,.8,purp,mx,11.8,mz));
+        addLabel(lbl,mx,14,mz);markers.push({name:lbl,x:mx,z:mz});
+      }
+      maus(95,128,"Crypt of the Damned");
+      maus(132,162,"Mausoleum of Ash");
+      maus(-96,164,"Vault of the Fallen");
+      maus(95,188,"Tomb of Blackthorn");
+      // Perimeter fence posts
+      for(let a=0;a<24;a++){const ang=a/24*Math.PI*2;const fpx=22+Math.cos(ang)*95,fpz=155+Math.sin(ang)*68;if(polyInside(fpx,fpz,isl3))gy.add(box(.5,1.8,.5,gD,fpx,.9,fpz));}
+      // Sickly green mist pools
+      for(let i=0;i<14;i++){const mx=rand(-110,150),mz=rand(92,200);if(polyInside(mx,mz,isl3))world.add(box(rand(3,9),.05,rand(3,9),gren,mx,.02,mz));}
+      addLabel("Blackthorn Graveyard",20,8,158);
+    })();
+
+    addLabel("BLACKTHORN",12,9,91);
   })();
-  // bridge connecting the home island to the graveyard island
+  // Bridge: home island to BLACKTHORN (graveyard)
   (()=>{
-    const bg=new THREE.Group();world.add(bg);const x0=8,z0=44,z1=96,len=z1-z0;const mz=(z0+z1)/2;
+    const bg=new THREE.Group();world.add(bg);const x0=8,z0=44,z1=90,len=z1-z0;const mz=(z0+z1)/2;
     bg.add(box(6,.4,len,M.wood,x0,.7,mz));addWalk(x0,mz,6,len,.9);
     for(let z=z0;z<z1;z+=2)bg.add(box(6.5,.12,.2,M.darkWood,x0,.92,z));
     for(const s of[-1,1]){bg.add(box(.2,1.0,len,M.trim,x0+s*2.85,1.2,mz));for(let z=z0;z<=z1;z+=6)bg.add(cyl(.12,.14,1.3,8,M.darkWood,x0+s*2.7,.6,z));}
