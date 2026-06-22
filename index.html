@@ -512,6 +512,12 @@
       world.add(box(7,.35,7,mossM,tx,14.4,tz));
     }
     vines(FX,FZ-OD,'z',OW*1.6);vines(FX,FZ+OD,'z',OW*1.6);vines(FX-OW,FZ,'x',OD*1.6);vines(FX+OW,FZ,'x',OD*1.6);
+    // ── WALL TORCHES ──
+    const wTorch=neon(0xff6600,2.5);
+    for(let wx=FX-OW+8;wx<FX+OW;wx+=12){world.add(box(.32,.55,.32,stoneM,wx,7,FZ-OD-1.7));world.add(box(.48,.52,.48,wTorch,wx,7.75,FZ-OD-1.7));world.add(box(.32,.55,.32,stoneM,wx,7,FZ+OD+1.7));world.add(box(.48,.52,.48,wTorch,wx,7.75,FZ+OD+1.7));}
+    for(let wz=FZ-OD+8;wz<FZ+OD;wz+=12){world.add(box(.32,.55,.32,stoneM,FX-OW-1.7,7,wz));world.add(box(.48,.52,.48,wTorch,FX-OW-1.7,7.75,wz));world.add(box(.32,.55,.32,stoneM,FX+OW+1.7,7,wz));world.add(box(.48,.52,.48,wTorch,FX+OW+1.7,7.75,wz));}
+    // Corner tower torches
+    for(const[tx,tz] of [[FX-OW,FZ-OD],[FX+OW,FZ-OD],[FX-OW,FZ+OD],[FX+OW,FZ+OD]]){for(let a=0;a<4;a++){const an=a/4*Math.PI*2;world.add(box(.48,.52,.48,wTorch,tx+Math.cos(an)*5.5,16,tz+Math.sin(an)*5.5));}}
 
     // ── PRISON BUILDING (center of fortress) ──
     const PW=26,PD=34,PH=11;
@@ -569,6 +575,11 @@
     carvings(FX+19.2,3.5,FZ-26,Math.PI/2);
     // More rubble & moss patches around the island
     for(let i=0;i<6;i++)world.add(box(rand(2,4),.3,rand(2,4),mossM,FX+rand(-35,35),.16,FZ+rand(-40,40)));
+    // ── TALL JUNGLE GRASS ──
+    {const grasM=new THREE.MeshStandardMaterial({color:0x2e6b12,roughness:.88,side:THREE.DoubleSide,transparent:true,opacity:.94});
+    function grassTuft(gx,gz){const gh=rand(1.6,3.8);for(let gi=0;gi<3;gi++){const ga=gi/3*Math.PI;const gp=new THREE.Mesh(new THREE.PlaneGeometry(.9+rand(0,.5),gh),grasM);gp.position.set(gx+rand(-.5,.5),gh/2,gz+rand(-.5,.5));gp.rotation.y=ga;world.add(gp);}}
+    for(let i=0;i<90;i++){const a=rand(0,Math.PI*2);const r=rand(8,82);grassTuft(FX+Math.cos(a)*r,FZ+Math.sin(a)*r);}
+    for(const[px,pz] of[[250,108],[272,100],[298,95],[325,92],[358,96],[390,112],[410,136],[414,162],[400,190],[376,214],[342,220],[306,220],[270,210],[244,194],[220,172],[208,146],[218,120],[236,110]])for(let g=0;g<6;g++)grassTuft(px+rand(-8,8),pz+rand(-8,8));}
 
     addLabel('Jungle Fortress',FX,18,FZ-OD+5);markers.push({name:'Jungle Fortress',x:FX,z:FZ});
 
@@ -1169,55 +1180,99 @@
     for(const s of[-1,1]){bridge.add(box(.4,1.3,Math.abs(blen),glow,bx+s*4.2,1.8,bmz));}
   })();
 
-  /* ===== ICE CITY — ethereal frozen skyscrapers + Ice Giant on Throne of Frost ===== */
+  /* ===== ICE CITY — frozen street grid like Japan, skyscrapers + Ice Giant ===== */
   (()=>{
-    const CX=162,CZ=-158;const BASE=0;
-    const skyM=new THREE.MeshStandardMaterial({color:0xc2eaff,roughness:.05,metalness:.3,transparent:true,opacity:.70,emissive:0x1a5888,emissiveIntensity:.3});
-    const skyD=new THREE.MeshStandardMaterial({color:0x8cc8e8,roughness:.14,metalness:.24,transparent:true,opacity:.82,emissive:0x0e3860,emissiveIntensity:.24});
+    const CX=162,CZ=-158;
+    const iceBodyM=new THREE.MeshStandardMaterial({color:0x080e1a,roughness:.38,metalness:.24});
+    const iceBody2M=new THREE.MeshStandardMaterial({color:0x0a1422,roughness:.38,metalness:.2});
     const plzM=new THREE.MeshStandardMaterial({color:0xd0eeff,roughness:.16,metalness:.16,emissive:0x0a2840,emissiveIntensity:.16});
-    const glM=neon(0x44d4ff,2.8);const glM2=neon(0x88eeff,2.0);const dimG=neon(0x22aadd,1.4);
-    // Plaza floor
-    world.add(box(160,.32,150,plzM,CX,BASE+.16,CZ));addWalk(CX,CZ,158,148,BASE+.36);
-    // Neon grid lines on plaza
-    for(let gx=CX-72;gx<=CX+72;gx+=20)world.add(box(.38,.2,150,glM2,gx,BASE+.28,CZ));
-    for(let gz=CZ-66;gz<=CZ+66;gz+=18)world.add(box(160,.2,.38,glM2,CX,BASE+.28,gz));
-    // Elevated ice ring road around plaza
-    world.add(box(164,.55,5,skyD,CX,BASE+.28,CZ-77));addWalk(CX,CZ-77,162,5,BASE+.55);
-    world.add(box(164,.55,5,skyD,CX,BASE+.28,CZ+77));addWalk(CX,CZ+77,162,5,BASE+.55);
-    world.add(box(5,.55,150,skyD,CX-82,BASE+.28,CZ));addWalk(CX-82,CZ,5,148,BASE+.55);
-    world.add(box(5,.55,150,skyD,CX+82,BASE+.28,CZ));addWalk(CX+82,CZ,5,148,BASE+.55);
+    const iceRdM=new THREE.MeshStandardMaterial({color:0x8cc8e8,roughness:.32,metalness:.18,emissive:0x0e3060,emissiveIntensity:.12});
+    const crystM=new THREE.MeshStandardMaterial({color:0xc2eaff,roughness:.05,metalness:.3,transparent:true,opacity:.72,emissive:0x1a5888,emissiveIntensity:.3});
+    const IC1=0x44d4ff,IC2=0x88eeff,IC3=0x00aeff;
 
-    // ── SKYSCRAPER BUILDER ──
-    function iceSky(sx,sz,sw,sd,sh,col){
-      col=col||glM;
-      const t=box(sw,sh,sd,skyM,sx,BASE+sh/2,sz);world.add(t);addColl(t);
-      for(const[ex,ez] of [[-sw/2,-sd/2],[-sw/2,sd/2],[sw/2,-sd/2],[sw/2,sd/2]])world.add(box(.4,sh,.4,col,sx+ex,BASE+sh/2,sz+ez));
-      for(let fy=9;fy<sh;fy+=9)world.add(box(sw+.6,.32,sd+.6,col,sx,BASE+fy,sz));
-      const sp=new THREE.Mesh(new THREE.ConeGeometry(sw*.28,sh*.35,6),skyM);sp.position.set(sx,BASE+sh+sh*.175,sz);world.add(sp);
-      world.add(box(sw+1.4,.5,sd+1.4,col,sx,BASE+sh+.24,sz));
-      addWalk(sx,sz,sw-1,sd-1,BASE+.36);
+    // ── ICE TOWER builder (mirrors skyscraper style with ice palette) ──
+    function iceTower(name,x,z,w,d,h,nc){
+      const g=new THREE.Group();g.position.set(x,0,z);world.add(g);
+      const body=box(w,h,d,iceBodyM,0,h/2,0);g.add(body);addColl(body);
+      const tr=neon(nc,1.1);
+      for(let yy=3;yy<h-2;yy+=3.4){g.add(box(w*.84,.08,.08,tr,0,yy,-d/2-.07));g.add(box(w*.84,.08,.08,tr,0,yy,d/2+.07));}
+      for(let xx=-w/2+2;xx<w/2-1;xx+=3.4){g.add(box(.08,h*.82,.08,tr,xx,h*.48,-d/2-.08));g.add(box(.08,h*.82,.08,tr,xx,h*.48,d/2+.08));}
+      g.add(box(w-1.2,.18,d-1.2,new THREE.MeshStandardMaterial({color:0x10141c,roughness:.8}),0,h+.12,0));
+      addWalk(x,z,w-1.2,d-1.2,h+.21);
+      const sp=new THREE.Mesh(new THREE.ConeGeometry(w*.28,h*.32,6),crystM);sp.position.set(0,h+h*.16,0);g.add(sp);
+      const beacon=new THREE.Mesh(new THREE.SphereGeometry(.5,10,8),neon(nc,2.4));beacon.position.set(0,h+h*.34,0);g.add(beacon);
+      if(name){addLabel(name,x,h+5,z);markers.push({name,x,z});}
     }
-    // Outer ring — 8 towers
-    iceSky(CX,   CZ-60, 12,10, 72,glM);   // north giant
-    iceSky(CX+50,CZ-44, 10, 8, 54,glM2);
-    iceSky(CX-50,CZ-44, 10, 8, 54,glM2);
-    iceSky(CX+64,CZ,     8, 8, 46,glM);
-    iceSky(CX-64,CZ,     8, 8, 46,glM);
-    iceSky(CX+50,CZ+44, 10, 8, 50,glM2);
-    iceSky(CX-50,CZ+44, 10, 8, 50,glM2);
-    iceSky(CX,   CZ+58, 12,10, 62,glM);   // south giant
-    // Inner ring — 6 medium towers
-    iceSky(CX+26,CZ-28,  7, 7, 34,dimG);iceSky(CX-26,CZ-28,  7, 7, 34,dimG);
-    iceSky(CX+26,CZ+26,  7, 7, 30,dimG);iceSky(CX-26,CZ+26,  7, 7, 30,dimG);
-    iceSky(CX+34,CZ,     6, 6, 24,glM2); iceSky(CX-34,CZ,     6, 6, 24,glM2);
-    // Skyway bridges between towers (elevated walkways at h=32)
-    world.add(box(50,1.4,2.8,skyD,CX,32,CZ-52));addWalk(CX,CZ-52,50,2.8,32.7);
-    world.add(box(2.8,1.4,52,skyD,CX-57,32,CZ));addWalk(CX-57,CZ,2.8,52,32.7);
-    world.add(box(2.8,1.4,52,skyD,CX+57,32,CZ));addWalk(CX+57,CZ,2.8,52,32.7);
-    // Railings on skyways
-    for(const s of[-1,1]){world.add(box(50,.8,.25,glM,CX,33.4,CZ-52+s*1.4));world.add(box(.25,.8,52,glM,CX-57+s*1.4,33.4,CZ));world.add(box(.25,.8,52,glM,CX+57+s*1.4,33.4,CZ));}
-    // Ice crystal formations
-    for(let i=0;i<22;i++){const a=rand(0,Math.PI*2),r=rand(16,46);const cr=new THREE.Mesh(new THREE.ConeGeometry(rand(.4,1.3),rand(3,9),6),skyM);cr.position.set(CX+Math.cos(a)*r,BASE+rand(2,5.5),CZ+Math.sin(a)*r);cr.rotation.set(rand(-.22,.22),rand(0,6),rand(-.22,.22));world.add(cr);}
+    // ── ICE SHOP builder (mirrors lowBlock with ice sign) ──
+    function iceShop(name,x,z,w,d,h,nc){
+      const g=new THREE.Group();g.position.set(x,0,z);world.add(g);
+      const base=box(w,h,d,iceBody2M,0,h/2,0);g.add(base);addColl(base);
+      const glW=new THREE.MeshStandardMaterial({color:0x2a4060,roughness:.2,metalness:.1,transparent:true,opacity:.9});
+      for(let i=0;i<Math.floor(w/3);i++){const xx=-w/2+2+i*3;g.add(box(1.2,1.3,.12,glW,xx,2.2,-d/2-.08));}
+      g.add(box(w-.8,.18,d-.8,new THREE.MeshStandardMaterial({color:0x141a24,roughness:.78}),0,h+.26,0));addWalk(x,z,w-.8,d-.8,h+.35);
+      const cv=document.createElement('canvas');cv.width=512;cv.height=160;const ctx=cv.getContext('2d');
+      ctx.fillStyle='rgba(4,12,20,.88)';ctx.fillRect(0,0,512,160);ctx.strokeStyle='#'+nc.toString(16).padStart(6,'0');ctx.lineWidth=8;ctx.strokeRect(10,10,492,140);
+      ctx.shadowColor='#'+nc.toString(16).padStart(6,'0');ctx.shadowBlur=24;ctx.fillStyle='#fff';ctx.font='bold 50px Orbitron,Arial';ctx.textAlign='center';ctx.textBaseline='middle';if(name)ctx.fillText(name.split(' ')[0],256,84);
+      const sm=new THREE.MeshStandardMaterial({map:new THREE.CanvasTexture(cv),emissive:nc,emissiveIntensity:.95,roughness:.25});
+      g.add(box(Math.min(7,w*.55),1.4,.12,sm,0,h+2.2,-d/2-.2));
+      if(name){addLabel(name,x,h+4,z);markers.push({name,x,z});}
+    }
+
+    // ── CENTRAL PLAZA ──
+    world.add(box(76,.32,76,plzM,CX,.16,CZ));addWalk(CX,CZ,74,74,.36);
+    for(let gx=CX-34;gx<=CX+34;gx+=12)world.add(box(.3,.2,76,neon(IC2,1.6),gx,.28,CZ));
+    for(let gz=CZ-34;gz<=CZ+34;gz+=12)world.add(box(76,.2,.3,neon(IC2,1.6),CX,.28,gz));
+
+    // ── ICE STREET GRID (E-W main + N-S cross + parallel boulevards) ──
+    world.add(box(240,.3,14,iceRdM,CX,.15,CZ));addWalk(CX,CZ,240,14,.3);
+    world.add(box(14,.3,220,iceRdM,CX,.15,CZ));addWalk(CX,CZ,14,220,.3);
+    world.add(box(240,.3,10,iceRdM,CX,.15,CZ-62));addWalk(CX,CZ-62,240,10,.3);
+    world.add(box(240,.3,10,iceRdM,CX,.15,CZ+62));addWalk(CX,CZ+62,240,10,.3);
+    world.add(box(10,.3,220,iceRdM,CX-74,.15,CZ));addWalk(CX-74,CZ,10,220,.3);
+    world.add(box(10,.3,220,iceRdM,CX+74,.15,CZ));addWalk(CX+74,CZ,10,220,.3);
+    // Ice lane dashes
+    for(let lx=CX-110;lx<CX+110;lx+=10)world.add(box(5,.04,.4,neon(IC1,1.4),lx,.34,CZ+7));
+    for(let lz=CZ-100;lz<CZ+100;lz+=10)world.add(box(.4,.04,5,neon(IC1,1.4),CX+7,.34,lz));
+
+    // ── ICE SKYSCRAPERS (grid-aligned along streets) ──
+    iceTower('Cryo Spire',   CX,    CZ-96, 14,14,72,IC1);
+    iceTower('Glacier Tower',CX,    CZ+96, 14,14,66,IC2);
+    iceTower('Arctic Peak',  CX-96, CZ,    14,12,60,IC3);
+    iceTower('Ice Pinnacle', CX+96, CZ,    14,12,56,IC1);
+    iceTower(null, CX-96, CZ-62, 12,12,48,IC2);
+    iceTower(null, CX+96, CZ-62, 12,12,50,IC3);
+    iceTower(null, CX-96, CZ+62, 12,12,44,IC1);
+    iceTower(null, CX+96, CZ+62, 12,12,46,IC2);
+    iceTower(null, CX-48, CZ-62, 12,12,38,IC3);
+    iceTower(null, CX+48, CZ-62, 12,12,40,IC1);
+    iceTower(null, CX-48, CZ+62, 12,12,34,IC2);
+    iceTower(null, CX+48, CZ+62, 12,12,36,IC3);
+    iceTower(null, CX-74, CZ-96, 10,10,32,IC2);
+    iceTower(null, CX+74, CZ-96, 10,10,34,IC3);
+    iceTower(null, CX-74, CZ+96, 10,10,30,IC1);
+    iceTower(null, CX+74, CZ+96, 10,10,32,IC2);
+    // ── ICE SHOPS (street-level, along blocks) ──
+    iceShop('Frost Bar',   CX-74, CZ-62, 22,14,8,IC1);
+    iceShop('Cryo Lab',   CX+74, CZ-62, 22,14,8,IC2);
+    iceShop('Ice Pub',    CX-74, CZ+62, 20,14,8,IC3);
+    iceShop('Polar Diner',CX+74, CZ+62, 20,14,8,IC1);
+    iceShop('Sub Zero',   CX-48, CZ-96, 18,13,7,IC2);
+    iceShop('Blizzard',   CX+48, CZ-96, 18,13,7,IC3);
+    iceShop('Chill Zone', CX-48, CZ+96, 18,13,7,IC1);
+    iceShop('Frost Bite', CX+48, CZ+96, 18,13,7,IC2);
+
+    // ── ICE STREET LAMPS ──
+    [[CX-74,CZ-62],[CX+74,CZ-62],[CX-74,CZ+62],[CX+74,CZ+62],
+     [CX-48,CZ-62],[CX+48,CZ-62],[CX-48,CZ+62],[CX+48,CZ+62],
+     [CX,CZ-96],[CX,CZ+96],[CX-96,CZ],[CX+96,CZ],
+     [CX-74,CZ-96],[CX+74,CZ-96],[CX-74,CZ+96],[CX+74,CZ+96]].forEach(([lx,lz2])=>{
+      const lm=new THREE.MeshStandardMaterial({color:0x8cc8e8,roughness:.5,metalness:.4});
+      world.add(cyl(.08,.1,3.2,8,lm,lx,1.6,lz2));
+      const orb=new THREE.Mesh(new THREE.SphereGeometry(.36,12,8),neon(IC1,2.4));orb.position.set(lx,3.35,lz2);world.add(orb);
+    });
+
+    // ── ICE CRYSTAL FORMATIONS (scattered across city blocks) ──
+    for(let i=0;i<34;i++){const a=rand(0,Math.PI*2),r=rand(20,88);const cr=new THREE.Mesh(new THREE.ConeGeometry(rand(.4,1.8),rand(4,13),6),crystM);cr.position.set(CX+Math.cos(a)*r,.2+rand(1,5.5),CZ+Math.sin(a)*r);cr.rotation.set(rand(-.22,.22),rand(0,6),rand(-.22,.22));world.add(cr);}
 
     // ── ICE GIANT — seated on THRONE OF FROST ──
     (()=>{
@@ -1225,48 +1280,27 @@
       const gM=new THREE.MeshStandardMaterial({color:0x88c8ec,roughness:.26,metalness:.14,emissive:0x0e3060,emissiveIntensity:.24});
       const eyeM=neon(0xff0800,7);
       const thrM=new THREE.MeshStandardMaterial({color:0xb4dff8,roughness:.16,metalness:.2,emissive:0x0a2840,emissiveIntensity:.32});
-      const gg=new THREE.Group();gg.position.set(GX,BASE,GZ);world.add(gg);
-      // Raised dais platform
-      const dais=box(26,2.2,22,thrM,0,1.1,0);world.add(dais);gg.add(dais);addWalk(GX,GZ,26,22,BASE+2.3);
+      const gg=new THREE.Group();gg.position.set(GX,0,GZ);world.add(gg);
+      const dais=box(26,2.2,22,thrM,0,1.1,0);world.add(dais);gg.add(dais);addWalk(GX,GZ,26,22,2.3);
       for(let a=0;a<10;a++){const an=a/10*Math.PI*2;const sp=new THREE.Mesh(new THREE.ConeGeometry(1.1,rand(4,7),6),thrM);sp.position.set(Math.cos(an)*14.5,rand(4,7)*.5+3,Math.sin(an)*14.5);gg.add(sp);}
-      // Throne seat
       gg.add(box(16,2,13,thrM,0,3.2,0));
-      // Throne back (tall, imposing)
       gg.add(box(16,22,1.8,thrM,0,14.2,7));
-      // Throne armrests
       gg.add(box(1.8,5,13,thrM,-8,5.7,0));gg.add(box(1.8,5,13,thrM,8,5.7,0));
-      // Throne ice spires at top
       for(const[ix,iz2,h2] of [[-5,6.5,9],[0,7,12],[5,6.5,9],[-8,5.5,7],[8,5.5,7]]){const sp=new THREE.Mesh(new THREE.ConeGeometry(.9,h2,5),thrM);sp.position.set(ix,25,iz2);gg.add(sp);}
-      // Frost runes on throne back (interior face)
       for(let r=0;r<4;r++)for(let c=0;c<5;c++){const rm=new THREE.Mesh(new THREE.BoxGeometry(.3,.3,.14),neon(0x88eeff,1.8));rm.position.set(-3.6+c*1.8,5+r*3,6.1);gg.add(rm);}
-      // ─ GIANT BODY ─
-      // Torso
       const torso=box(9,10,6.5,gM,0,7.5,0);gg.add(torso);
-      // Head (sphere)
       const head=new THREE.Mesh(new THREE.SphereGeometry(4,18,18),gM);head.position.set(0,16,-.5);gg.add(head);
-      // FIERCE RED EYES
       const eyeL=new THREE.Mesh(new THREE.SphereGeometry(.7,10,10),eyeM);eyeL.position.set(-1.4,16.8,-4);gg.add(eyeL);
       const eyeR=new THREE.Mesh(new THREE.SphereGeometry(.7,10,10),eyeM);eyeR.position.set(1.4,16.8,-4);gg.add(eyeR);
-      // Red eye point light (floods surroundings in menacing red)
       const eL=new THREE.PointLight(0xff0800,6,50,2);eL.position.set(0,16.5,-4);gg.add(eL);
-      // Brow ridge
-      gg.add(box(7,.9,1.2,gM,0,18.2,-3.6));
-      // Jaw
-      gg.add(box(5.5,1.2,1.5,gM,0,14,-3.8));
-      // Crown of icicle spikes
+      gg.add(box(7,.9,1.2,gM,0,18.2,-3.6));gg.add(box(5.5,1.2,1.5,gM,0,14,-3.8));
       for(let i=0;i<9;i++){const a=i/9*Math.PI*2;const sp=new THREE.Mesh(new THREE.ConeGeometry(.5,rand(3,6),5),thrM);sp.position.set(Math.cos(a)*3.4,rand(19,23),Math.sin(a)*3.4-.5);gg.add(sp);}
-      // Left arm (resting on armrest)
-      gg.add(box(2.5,5,3.5,gM,-7,8,0));gg.add(box(2,2.5,9,gM,-7.5,4.5,-1.5));
-      gg.add(box(2.8,2.5,2.8,gM,-7.5,4.5,-6.8)); // left fist
+      gg.add(box(2.5,5,3.5,gM,-7,8,0));gg.add(box(2,2.5,9,gM,-7.5,4.5,-1.5));gg.add(box(2.8,2.5,2.8,gM,-7.5,4.5,-6.8));
       for(let k=0;k<3;k++)gg.add(box(.9,1.2,2,gM,-7.5+(k-1)*.8,3.6,-7.8));
-      // Right arm
-      gg.add(box(2.5,5,3.5,gM,7,8,0));gg.add(box(2,2.5,9,gM,7.5,4.5,-1.5));
-      gg.add(box(2.8,2.5,2.8,gM,7.5,4.5,-6.8));
+      gg.add(box(2.5,5,3.5,gM,7,8,0));gg.add(box(2,2.5,9,gM,7.5,4.5,-1.5));gg.add(box(2.8,2.5,2.8,gM,7.5,4.5,-6.8));
       for(let k=0;k<3;k++)gg.add(box(.9,1.2,2,gM,7.5+(k-1)*.8,3.6,-7.8));
-      // Seated legs (bent forward)
       gg.add(box(3.2,2.8,8,gM,-3.5,3,-5));gg.add(box(3.2,2.8,8,gM,3.5,3,-5));
       gg.add(box(2.8,7,3,gM,-3.5,-2,-9));gg.add(box(2.8,7,3,gM,3.5,-2,-9));
-      // Frost aura rings
       for(const[rs,col2,iI] of [[18,0x44d4ff,1.8],[26,0x88eeff,1.4],[34,0x22aadd,1.1]]){const ring=new THREE.Mesh(new THREE.TorusGeometry(rs,.45,6,30),neon(col2,iI));ring.rotation.x=Math.PI/2;ring.position.y=.6;gg.add(ring);}
       addLabel('ICE GIANT ─ THRONE OF FROST',GX,32,GZ);markers.push({name:'Ice Giant Throne',x:GX,z:GZ});
     })();
