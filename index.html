@@ -371,6 +371,10 @@
   const isl5=[[-18,206],[50,198],[135,193],[220,196],[295,210],[340,238],[355,282],[345,335],[315,375],[262,402],[185,412],[108,406],[48,386],[8,356],[-12,310],[-15,258]];
   const desertGround=new THREE.MeshStandardMaterial({color:0xb8935a,roughness:.96,metalness:.01});
   makeIsland(isl5,desertGround);
+  // isl6: JUNGLE FORTRESS — ancient prison island, east of BLACKTHORN / south of Japan
+  const isl6=[[210,100],[255,84],[302,78],[352,82],[398,98],[428,128],[432,165],[418,198],[384,218],[338,224],[290,218],[248,204],[212,178],[196,148]];
+  const jungleGnd=new THREE.MeshStandardMaterial({color:0x162210,roughness:.99,metalness:.0});
+  makeIsland(isl6,jungleGnd);
   (()=>{
     const px=175,pz=305; // pyramid center (island center)
     const pyrMat=new THREE.MeshStandardMaterial({color:0xd4a85a,roughness:.88,flatShading:true});
@@ -449,6 +453,135 @@
     // support pillars
     for(const bpz of[194,199,204]){world.add(box(1,2.4,1,bMat,-3.5,1.2,bpz));world.add(box(1,2.4,1,bMat,3.5,1.2,bpz));}
     addLabel('Bridge to Pyramid Island',5,6,199);
+  })();
+
+  /* ===== JUNGLE FORTRESS PRISON (isl6) — ancient prison overgrown by jungle ===== */
+  (()=>{
+    const FX=315,FZ=152;
+    const stoneM=new THREE.MeshStandardMaterial({color:0x4a4535,roughness:.95,metalness:.01});
+    const mossM=new THREE.MeshStandardMaterial({color:0x2d3d22,roughness:.98,metalness:.0});
+    const vineM=new THREE.MeshStandardMaterial({color:0x1a5a08,roughness:.96,side:THREE.DoubleSide});
+    const darkM=new THREE.MeshStandardMaterial({color:0x141210,roughness:.95,metalness:.02});
+    const runeM=new THREE.MeshStandardMaterial({color:0xc8a030,emissive:0x6a5010,emissiveIntensity:.95,roughness:.55});
+    const barkM=new THREE.MeshStandardMaterial({color:0x3c2a10,roughness:.92});
+    const leafM=new THREE.MeshStandardMaterial({color:0x1e5c0a,roughness:.88,side:THREE.DoubleSide});
+    const barM=new THREE.MeshStandardMaterial({color:0x2a2820,roughness:.7,metalness:.5});
+    addWalk(FX,FZ,220,130,.35);
+
+    // ── COCONUT PALMS ──
+    function palm(px,pz){
+      const h=12+rand(0,7);
+      const trk=cyl(.35,.55,h,8,barkM,px,h/2,pz);trk.rotation.z=rand(-.14,.14);trk.rotation.x=rand(-.08,.08);world.add(trk);
+      const frondM2=new THREE.MeshStandardMaterial({color:0x1e5c0a,roughness:.88,side:THREE.DoubleSide});
+      for(let i=0;i<7;i++){const a=i/7*Math.PI*2;const fr=new THREE.Mesh(new THREE.PlaneGeometry(7+rand(0,3),1.1),frondM2);fr.position.set(px+Math.cos(a)*3.5,h+.4,pz+Math.sin(a)*3.5);fr.rotation.y=-a;fr.rotation.z=-.35;world.add(fr);}
+      const cocM=new THREE.MeshStandardMaterial({color:0x3c2808,roughness:.9});
+      for(let i=0;i<3;i++){const a=i/3*Math.PI*2;const c=new THREE.Mesh(new THREE.SphereGeometry(.35,6,6),cocM);c.position.set(px+Math.cos(a)*.7,h-.4,pz+Math.sin(a)*.7);world.add(c);}
+    }
+    for(const[px,pz] of[[250,108],[272,100],[298,95],[325,92],[358,96],[390,112],[410,136],[414,162],[400,190],[376,214],[342,220],[306,220],[270,210],[244,194],[220,172],[208,146],[218,120],[236,110]])palm(px,pz);
+
+    // ── VINE helper (vertical draping strips) ──
+    function vines(wx,wz,axis,len){
+      for(let i=0;i<7;i++){const off=rand(-len*.45,len*.45);const vx=axis==='z'?wx+off:wx;const vz=axis==='x'?wz+off:wz;const vh=rand(1.5,5.5);world.add(box(.1,vh,.1,vineM,vx,8.5-vh/2,vz));}
+    }
+
+    // ── STENOGRAPHIC CARVINGS (ancient glyphs) ──
+    function carvings(cx2,cy,cz2,ry){
+      const cg2=new THREE.Group();cg2.position.set(cx2,cy,cz2);if(ry)cg2.rotation.y=ry;
+      const glyphs=[[[0,-1],[0,0],[0,1],[-1,0]],[[-1,-1],[1,-1],[0,0],[0,1]],[[-1,0],[1,0],[0,-1]],[[-1,-1],[-1,0],[0,1],[1,0],[1,-1]],[[0,-1],[0,0],[-1,1],[1,1]],[[-1,0],[0,-1],[0,0],[1,0]]];
+      for(let row=0;row<3;row++)for(let col=0;col<4;col++){const sym=glyphs[(row*4+col)%glyphs.length];const bx3=col*1.9-2.85,by3=row*1.9;for(const[dx,dy] of sym){const s=new THREE.Mesh(new THREE.BoxGeometry(.3,.3,.07),runeM);s.position.set(bx3+dx*.38,by3+dy*.38,0);cg2.add(s);}}
+      world.add(cg2);
+    }
+
+    // ── OUTER FORTRESS WALLS ──
+    const OW=46,OD=52;
+    world.add(wallB(OW*2,9,3.5,FX,4.5,FZ-OD,stoneM));  // north wall
+    // South wall gate gap (6u)
+    {const gw=6,pw=(OW*2-gw)/2;world.add(wallB(pw,9,3.5,FX-(gw/2+pw/2),4.5,FZ+OD,stoneM));world.add(wallB(pw,9,3.5,FX+(gw/2+pw/2),4.5,FZ+OD,stoneM));world.add(wallB(OW*2,4,3.5,FX,11,FZ+OD,stoneM));}
+    // West wall — tunnel gap at FZ (3u wide)
+    {const tgw=3,wlen=(OD*2-tgw)/2;world.add(wallB(3.5,9,wlen,FX-OW,4.5,FZ-OD/2-tgw/2-wlen/2,stoneM));world.add(wallB(3.5,9,wlen,FX-OW,4.5,FZ+OD/2+tgw/2+wlen/2,mossM));world.add(box(3.5,2.8,tgw+1,stoneM,FX-OW,4,FZ));addWalk(FX-OW,FZ,3.5,tgw,.35);}
+    // East wall — tunnel gap at FZ
+    {const tgw=3,wlen=(OD*2-tgw)/2;world.add(wallB(3.5,9,wlen,FX+OW,4.5,FZ-OD/2-tgw/2-wlen/2,stoneM));world.add(wallB(3.5,9,wlen,FX+OW,4.5,FZ+OD/2+tgw/2+wlen/2,mossM));world.add(box(3.5,2.8,tgw+1,stoneM,FX+OW,4,FZ));addWalk(FX+OW,FZ,3.5,tgw,.35);}
+    // Battlements
+    for(const[bx2,bz2,bl,horiz] of [[FX,FZ-OD,OW*2,true],[FX,FZ+OD,OW*2,true],[FX-OW,FZ,OD*2,false],[FX+OW,FZ,OD*2,false]]){
+      for(let i=-bl/2+1.5;i<bl/2;i+=3)world.add(box(horiz?1.4:1.6,2,horiz?1.6:1.4,stoneM,bx2+(horiz?i:0),10,bz2+(horiz?0:i)));
+    }
+    // Corner towers
+    for(const[tx,tz] of [[FX-OW,FZ-OD],[FX+OW,FZ-OD],[FX-OW,FZ+OD],[FX+OW,FZ+OD]]){
+      world.add(wallB(10,14,10,tx,7,tz,stoneM));addWalk(tx,tz,9,9,1.0);
+      for(let a=0;a<8;a++){const an=a/8*Math.PI*2;world.add(box(1.2,2.5,1.2,stoneM,tx+Math.cos(an)*4.8,14.5,tz+Math.sin(an)*4.8));}
+      world.add(box(7,.35,7,mossM,tx,14.4,tz));
+    }
+    vines(FX,FZ-OD,'z',OW*1.6);vines(FX,FZ+OD,'z',OW*1.6);vines(FX-OW,FZ,'x',OD*1.6);vines(FX+OW,FZ,'x',OD*1.6);
+
+    // ── PRISON BUILDING (center of fortress) ──
+    const PW=26,PD=34,PH=11;
+    world.add(box(PW,.3,PD,stoneM,FX,.15,FZ));addWalk(FX,FZ,PW-1,PD-1,.4);
+    // Front wall (south face, PZ-PD/2) with 3.5u door gap
+    {const dw=3.5,ph=PH,pw=(PW-dw)/2;world.add(wallB(pw,ph,2.5,FX-(dw/2+pw/2),ph/2,FZ-PD/2,stoneM));world.add(wallB(pw,ph,2.5,FX+(dw/2+pw/2),ph/2,FZ-PD/2,stoneM));world.add(wallB(PW,ph-4.2,2.5,FX,4.2+(ph-4.2)/2,FZ-PD/2,stoneM));}
+    world.add(wallB(PW,PH,2.5,FX,PH/2,FZ+PD/2,stoneM));    // back wall
+    world.add(wallB(2.5,PH,PD,FX-PW/2,PH/2,FZ,stoneM));     // left wall
+    world.add(wallB(2.5,PH,PD,FX+PW/2,PH/2,FZ,stoneM));     // right wall
+    // Cell window slits
+    for(const wz2 of[FZ-10,FZ,FZ+10]){world.add(box(.1,1.6,.5,neon(0x8aff44,.5),FX-PW/2,PH*.62,wz2));world.add(box(.1,1.6,.5,neon(0x8aff44,.5),FX+PW/2,PH*.62,wz2));}
+    // Interior cell bars (3 cells per side)
+    for(const bside of[-1,1]){for(let ci=0;ci<3;ci++){const cellZ=FZ-9+(ci*9);world.add(box(PW*.42,.06,PD*.26,mossM,FX+bside*PW*.22,3.5,cellZ));for(let b=0;b<5;b++)world.add(box(.15,PH*.5,.15,barM,FX+bside*4.5,PH*.25,cellZ-4+b*2));}}
+    // Partial moss-covered roof (collapsed at center gap)
+    world.add(box(PW+1,.5,PD*.5,mossM,FX,PH+.25,FZ-PD*.24));world.add(box(PW+1,.5,PD*.4,mossM,FX,PH+.25,FZ+PD*.2));
+    // Rubble in collapsed gap
+    for(let i=0;i<10;i++)world.add(box(rand(1,3),rand(.5,1.8),rand(1,3),stoneM,FX+rand(-8,8),rand(.3,1.2),FZ+rand(-2,4)));
+    // Stenographic carvings on prison walls (interior faces)
+    carvings(FX-PW/2+.2,5.5,FZ-6,Math.PI/2);carvings(FX-PW/2+.2,5.5,FZ+6,Math.PI/2);
+    carvings(FX+PW/2-.2,5.5,FZ-6,-Math.PI/2);carvings(FX+PW/2-.2,5.5,FZ+6,-Math.PI/2);
+    carvings(FX,5.5,FZ-PD/2+.2,0);carvings(FX,5.5,FZ+PD/2-.2,Math.PI);
+    vines(FX,FZ-PD/2,'z',PW*.8);vines(FX,FZ+PD/2,'z',PW*.8);vines(FX-PW/2,FZ,'x',PD*.8);vines(FX+PW/2,FZ,'x',PD*.8);
+
+    // ── COVERED STONE TUNNELS (N-S through east/west walls at ground level) ──
+    // West tunnel passage (covered corridor through west outer wall)
+    for(let tz2=FZ-5.5;tz2<FZ+5.5;tz2+=1.8){world.add(box(2.5,.2,1.6,darkM,FX-OW,.15,tz2));addWalk(FX-OW,tz2,2.5,1.6,.2);}
+    world.add(box(3.8,3,.2,darkM,FX-OW,1.6,FZ-1.5));world.add(box(3.8,3,.2,darkM,FX-OW,1.6,FZ+1.5)); // side walls
+    world.add(box(3.8,.3,3.2,darkM,FX-OW,3.2,FZ)); // tunnel ceiling
+    world.add(box(.5,.65,.65,neon(0xff6600,2),FX-OW,2.5,FZ)); // torch
+    // East tunnel
+    for(let tz2=FZ-5.5;tz2<FZ+5.5;tz2+=1.8){world.add(box(2.5,.2,1.6,darkM,FX+OW,.15,tz2));addWalk(FX+OW,tz2,2.5,1.6,.2);}
+    world.add(box(3.8,3,.2,darkM,FX+OW,1.6,FZ-1.5));world.add(box(3.8,3,.2,darkM,FX+OW,1.6,FZ+1.5));
+    world.add(box(3.8,.3,3.2,darkM,FX+OW,3.2,FZ));
+    world.add(box(.5,.65,.65,neon(0xff6600,2),FX+OW,2.5,FZ));
+
+    // ── UNDERGROUND-FEEL VAULT beneath prison ──
+    // Low stone corridor running E-W through prison base
+    const tunW=PW*.7,tunH2=3.5;
+    world.add(box(tunW,tunH2,6,darkM,FX,tunH2/2+.2,FZ+8));addWalk(FX,FZ+8,tunW-1,5,tunH2*.05+.2);
+    world.add(box(tunW,tunH2,6,darkM,FX,tunH2/2+.2,FZ-8));addWalk(FX,FZ-8,tunW-1,5,tunH2*.05+.2);
+    // Hanging vine roots into tunnel
+    for(let i=0;i<10;i++){const rx=FX+rand(-8,8);world.add(box(.1,rand(1,2.8),.1,vineM,rx,3+rand(.5,1.5),FZ+rand(-10,10)));}
+    // Wall torches inside tunnel
+    for(const tz2 of[FZ-8,FZ,FZ+8]){world.add(box(.2,.9,.4,stoneM,FX-tunW/2+.15,2.5,tz2));world.add(box(.5,.5,.5,neon(0xff6600,2.2),FX-tunW/2+.18,3.1,tz2));}
+
+    // ── RUINED OUTBUILDINGS ──
+    world.add(box(16,.3,18,mossM,FX-28,0.15,FZ-26));addWalk(FX-28,FZ-26,14,16,.35);
+    world.add(wallB(16,7,2.5,FX-28,3.5,FZ-35,mossM));world.add(wallB(2.5,7,18,FX-36,3.5,FZ-26,mossM));
+    world.add(wallB(2.5,4,8,FX-20,2,FZ-30,stoneM));
+    for(let i=0;i<8;i++)world.add(box(rand(1,2.5),rand(.4,1.8),rand(1,2.5),stoneM,FX-20+rand(-4,4),rand(.3,.9),FZ-22+rand(-4,4)));
+    carvings(FX-36.2,3.5,FZ-26,Math.PI/2);
+    world.add(box(18,.3,14,stoneM,FX+28,0.15,FZ-26));addWalk(FX+28,FZ-26,16,12,.4);
+    {const dw=3,ph=6,pw=(18-dw)/2;world.add(wallB(pw,ph,2,FX+28-(dw/2+pw/2),ph/2,FZ-33,stoneM));world.add(wallB(pw,ph,2,FX+28+(dw/2+pw/2),ph/2,FZ-33,stoneM));world.add(wallB(18,ph-3,2,FX+28,3+ph/2,FZ-33,stoneM));world.add(wallB(18,ph,2,FX+28,ph/2,FZ-19,mossM));world.add(wallB(2,ph,14,FX+19,ph/2,FZ-26,stoneM));world.add(wallB(2,ph,14,FX+37,ph/2,FZ-26,mossM));}
+    world.add(box(19,.4,15,mossM,FX+28,6.2,FZ-26));
+    carvings(FX+19.2,3.5,FZ-26,Math.PI/2);
+    // More rubble & moss patches around the island
+    for(let i=0;i<6;i++)world.add(box(rand(2,4),.3,rand(2,4),mossM,FX+rand(-35,35),.16,FZ+rand(-40,40)));
+
+    addLabel('Jungle Fortress',FX,18,FZ-OD+5);markers.push({name:'Jungle Fortress',x:FX,z:FZ});
+
+    // ── ROPE BRIDGE: Japan south (isl2) → Jungle island (isl6) ──
+    (()=>{
+      const bx2=345,bz0=84,bz1=106,blen=bz1-bz0,bmz=(bz0+bz1)/2;
+      const ropM=new THREE.MeshStandardMaterial({color:0x4a3a20,roughness:.9});
+      const plkM=new THREE.MeshStandardMaterial({color:0x3c2e18,roughness:.92});
+      for(let z=bz0+1;z<bz1;z+=1.8){const p=box(6.5,.22,1.1,plkM,bx2,.85,z);world.add(p);addWalk(bx2,z,6.5,1.1,.9);}
+      for(const s of[-1,1]){world.add(box(.15,1,blen,ropM,bx2+s*3,1.8,bmz));for(let z=bz0+2;z<bz1-2;z+=3)world.add(box(.1,1.8,.1,ropM,bx2+s*3,1.1,z));}
+      for(const az of[bz0,bz1])for(const s of[-1,1]){world.add(box(1.2,3,1.2,plkM,bx2+s*3.2,1.5,az));world.add(box(.14,6,.14,ropM,bx2+s*3.2,3.5,az));}
+      addLabel('Rope Bridge → Jungle Fortress',bx2,7,bmz);
+    })();
   })();
 
   // Sprawl ground
@@ -1036,72 +1169,108 @@
     for(const s of[-1,1]){bridge.add(box(.4,1.3,Math.abs(blen),glow,bx+s*4.2,1.8,bmz));}
   })();
 
-  /* ===== ICE CITY — western quarter of isl4 ===== */
+  /* ===== ICE CITY — ethereal frozen skyscrapers + Ice Giant on Throne of Frost ===== */
   (()=>{
-    const BASE=0;
-    const icW=new THREE.MeshStandardMaterial({color:0xc8e8ff,roughness:.28,metalness:.08,transparent:true,opacity:.91,emissive:0x1a4060,emissiveIntensity:.18});
-    const icR=new THREE.MeshStandardMaterial({color:0xa0c8e0,roughness:.4,metalness:.04});
-    const icD=new THREE.MeshStandardMaterial({color:0x90b8d8,roughness:.32,metalness:.06,transparent:true,opacity:.94,emissive:0x0e2840,emissiveIntensity:.15});
-    const gln=neon(0x6fe9ff,2.0);
-    const ambn=neon(0xffcc44,1.6);
-    // ---- street grid ----
-    // E-W streets (z constant)
-    for(const[sz,lbl] of [[-108,'ICE CITY'],[-133,null],[-160,null],[-186,null]]){
-      const rd=box(60,.28,8,icR,97,BASE+.14,sz);rd.receiveShadow=true;world.add(rd);addWalk(97,sz,60,8,BASE+.3);
-      for(let sx=70;sx<128;sx+=5){world.add(box(.4,.06,2.8,gln,sx,BASE+.18,sz));}
+    const CX=162,CZ=-158;const BASE=0;
+    const skyM=new THREE.MeshStandardMaterial({color:0xc2eaff,roughness:.05,metalness:.3,transparent:true,opacity:.70,emissive:0x1a5888,emissiveIntensity:.3});
+    const skyD=new THREE.MeshStandardMaterial({color:0x8cc8e8,roughness:.14,metalness:.24,transparent:true,opacity:.82,emissive:0x0e3860,emissiveIntensity:.24});
+    const plzM=new THREE.MeshStandardMaterial({color:0xd0eeff,roughness:.16,metalness:.16,emissive:0x0a2840,emissiveIntensity:.16});
+    const glM=neon(0x44d4ff,2.8);const glM2=neon(0x88eeff,2.0);const dimG=neon(0x22aadd,1.4);
+    // Plaza floor
+    world.add(box(160,.32,150,plzM,CX,BASE+.16,CZ));addWalk(CX,CZ,158,148,BASE+.36);
+    // Neon grid lines on plaza
+    for(let gx=CX-72;gx<=CX+72;gx+=20)world.add(box(.38,.2,150,glM2,gx,BASE+.28,CZ));
+    for(let gz=CZ-66;gz<=CZ+66;gz+=18)world.add(box(160,.2,.38,glM2,CX,BASE+.28,gz));
+    // Elevated ice ring road around plaza
+    world.add(box(164,.55,5,skyD,CX,BASE+.28,CZ-77));addWalk(CX,CZ-77,162,5,BASE+.55);
+    world.add(box(164,.55,5,skyD,CX,BASE+.28,CZ+77));addWalk(CX,CZ+77,162,5,BASE+.55);
+    world.add(box(5,.55,150,skyD,CX-82,BASE+.28,CZ));addWalk(CX-82,CZ,5,148,BASE+.55);
+    world.add(box(5,.55,150,skyD,CX+82,BASE+.28,CZ));addWalk(CX+82,CZ,5,148,BASE+.55);
+
+    // ── SKYSCRAPER BUILDER ──
+    function iceSky(sx,sz,sw,sd,sh,col){
+      col=col||glM;
+      const t=box(sw,sh,sd,skyM,sx,BASE+sh/2,sz);world.add(t);addColl(t);
+      for(const[ex,ez] of [[-sw/2,-sd/2],[-sw/2,sd/2],[sw/2,-sd/2],[sw/2,sd/2]])world.add(box(.4,sh,.4,col,sx+ex,BASE+sh/2,sz+ez));
+      for(let fy=9;fy<sh;fy+=9)world.add(box(sw+.6,.32,sd+.6,col,sx,BASE+fy,sz));
+      const sp=new THREE.Mesh(new THREE.ConeGeometry(sw*.28,sh*.35,6),skyM);sp.position.set(sx,BASE+sh+sh*.175,sz);world.add(sp);
+      world.add(box(sw+1.4,.5,sd+1.4,col,sx,BASE+sh+.24,sz));
+      addWalk(sx,sz,sw-1,sd-1,BASE+.36);
     }
-    // N-S streets (x constant)
-    for(const sx of[88,110]){
-      const rd=box(8,.28,82,icR,sx,BASE+.14,-147);rd.receiveShadow=true;world.add(rd);addWalk(sx,-147,8,82,BASE+.3);
-      for(let sz=-108;sz>-186;sz-=5){world.add(box(2.8,.06,.4,gln,sx,BASE+.18,sz));}
-    }
-    // ---- ice buildings ----
-    function iceBlk(bx,bz,bw,bd,bh,label){
-      // 4 walls — front wall (z=-bd/2) split with door gap
-      const dw=2.2,dh=3.0,sw=(bw-dw)/2;
-      if(sw>0.3){
-        const wL=box(sw,bh,.42,icW,bx-(dw/2+sw/2),BASE+bh/2,bz-bd/2);world.add(wL);addColl(wL);
-        const wR=box(sw,bh,.42,icW,bx+(dw/2+sw/2),BASE+bh/2,bz-bd/2);world.add(wR);addColl(wR);
-      }
-      const wA=box(bw,bh-dh,.42,icW,bx,BASE+dh+(bh-dh)/2,bz-bd/2);world.add(wA);addColl(wA);
-      const wB=box(bw,bh,.42,icW,bx,BASE+bh/2,bz+bd/2);world.add(wB);addColl(wB);
-      const wC=box(.42,bh,bd,icD,bx-bw/2,BASE+bh/2,bz);world.add(wC);addColl(wC);
-      const wD=box(.42,bh,bd,icD,bx+bw/2,BASE+bh/2,bz);world.add(wD);addColl(wD);
-      // flat roof
-      const rf=box(bw+.6,.5,bd+.6,icD,bx,BASE+bh+.25,bz);world.add(rf);
-      // neon sign strip
-      world.add(box(bw*.65,.22,.14,gln,bx,BASE+bh-.5,bz-bd/2-.07));
-      // interior floor walk surface
-      addWalk(bx,bz,bw-1,bd-1,BASE+.3);
-      if(label){addLabel(label,bx,BASE+bh+5,bz);markers.push({name:label,x:bx,z:bz});}
-    }
-    iceBlk(78,-120,14,10,9,'Ice Barracks');
-    iceBlk(99,-120,16,10,11,'Frost Market');
-    iceBlk(120,-120,12,10,8,null);
-    iceBlk(78,-146,14,12,12,'Cold Archive');
-    iceBlk(99,-146,16,12,13,'Crystal Hall');
-    iceBlk(120,-146,12,12,9,null);
-    iceBlk(78,-172,14,10,9,null);
-    iceBlk(99,-172,16,10,10,'Ice Forge');
-    iceBlk(120,-172,12,10,8,null);
-    // ---- igloos ----
-    function igloo(ix,iz,ir=5){
-      const domM=new THREE.MeshStandardMaterial({color:0xeef6ff,roughness:.25,metalness:.06,emissive:0x1a3c5a,emissiveIntensity:.12});
-      const dome=new THREE.Mesh(new THREE.SphereGeometry(ir,20,12,0,Math.PI*2,0,Math.PI/2),domM);
-      dome.position.set(ix,BASE+.05,iz);dome.castShadow=true;world.add(dome);addColl(dome);
-      const tun=box(2.8,ir*.68,3.4,domM,ix,BASE+ir*.34,iz-ir-.3);world.add(tun);
-      const igl=box(.5,.5,.5,neon(0x6fe9ff,2.8),ix,BASE+ir*.45,iz);world.add(igl);
-      addWalk(ix,iz,ir*1.6,ir*1.6,BASE+.25);
-    }
-    igloo(75,-98,4.5);igloo(97,-99,5);igloo(118,-98,4.5);
-    igloo(70,-120,4);igloo(70,-146,5);igloo(70,-172,4.5);
-    igloo(131,-120,4);igloo(131,-146,5);igloo(131,-172,4.5);
-    igloo(75,-194,4.5);igloo(99,-197,5.5);igloo(122,-194,4.5);
-    // frozen fountain at main intersection
-    world.add(box(1.5,4,1.5,icD,99,BASE+2,-133));
-    const ftn=new THREE.Mesh(new THREE.CylinderGeometry(4,5,1,16),icW);ftn.position.set(99,BASE+.5,-133);world.add(ftn);
-    world.add(box(3.5,.2,3.5,neon(0x6fe9ff,1.6),99,BASE+1.05,-133));
-    addLabel('Ice City',99,22,-133);
+    // Outer ring — 8 towers
+    iceSky(CX,   CZ-60, 12,10, 72,glM);   // north giant
+    iceSky(CX+50,CZ-44, 10, 8, 54,glM2);
+    iceSky(CX-50,CZ-44, 10, 8, 54,glM2);
+    iceSky(CX+64,CZ,     8, 8, 46,glM);
+    iceSky(CX-64,CZ,     8, 8, 46,glM);
+    iceSky(CX+50,CZ+44, 10, 8, 50,glM2);
+    iceSky(CX-50,CZ+44, 10, 8, 50,glM2);
+    iceSky(CX,   CZ+58, 12,10, 62,glM);   // south giant
+    // Inner ring — 6 medium towers
+    iceSky(CX+26,CZ-28,  7, 7, 34,dimG);iceSky(CX-26,CZ-28,  7, 7, 34,dimG);
+    iceSky(CX+26,CZ+26,  7, 7, 30,dimG);iceSky(CX-26,CZ+26,  7, 7, 30,dimG);
+    iceSky(CX+34,CZ,     6, 6, 24,glM2); iceSky(CX-34,CZ,     6, 6, 24,glM2);
+    // Skyway bridges between towers (elevated walkways at h=32)
+    world.add(box(50,1.4,2.8,skyD,CX,32,CZ-52));addWalk(CX,CZ-52,50,2.8,32.7);
+    world.add(box(2.8,1.4,52,skyD,CX-57,32,CZ));addWalk(CX-57,CZ,2.8,52,32.7);
+    world.add(box(2.8,1.4,52,skyD,CX+57,32,CZ));addWalk(CX+57,CZ,2.8,52,32.7);
+    // Railings on skyways
+    for(const s of[-1,1]){world.add(box(50,.8,.25,glM,CX,33.4,CZ-52+s*1.4));world.add(box(.25,.8,52,glM,CX-57+s*1.4,33.4,CZ));world.add(box(.25,.8,52,glM,CX+57+s*1.4,33.4,CZ));}
+    // Ice crystal formations
+    for(let i=0;i<22;i++){const a=rand(0,Math.PI*2),r=rand(16,46);const cr=new THREE.Mesh(new THREE.ConeGeometry(rand(.4,1.3),rand(3,9),6),skyM);cr.position.set(CX+Math.cos(a)*r,BASE+rand(2,5.5),CZ+Math.sin(a)*r);cr.rotation.set(rand(-.22,.22),rand(0,6),rand(-.22,.22));world.add(cr);}
+
+    // ── ICE GIANT — seated on THRONE OF FROST ──
+    (()=>{
+      const GX=CX,GZ=CZ;
+      const gM=new THREE.MeshStandardMaterial({color:0x88c8ec,roughness:.26,metalness:.14,emissive:0x0e3060,emissiveIntensity:.24});
+      const eyeM=neon(0xff0800,7);
+      const thrM=new THREE.MeshStandardMaterial({color:0xb4dff8,roughness:.16,metalness:.2,emissive:0x0a2840,emissiveIntensity:.32});
+      const gg=new THREE.Group();gg.position.set(GX,BASE,GZ);world.add(gg);
+      // Raised dais platform
+      const dais=box(26,2.2,22,thrM,0,1.1,0);world.add(dais);gg.add(dais);addWalk(GX,GZ,26,22,BASE+2.3);
+      for(let a=0;a<10;a++){const an=a/10*Math.PI*2;const sp=new THREE.Mesh(new THREE.ConeGeometry(1.1,rand(4,7),6),thrM);sp.position.set(Math.cos(an)*14.5,rand(4,7)*.5+3,Math.sin(an)*14.5);gg.add(sp);}
+      // Throne seat
+      gg.add(box(16,2,13,thrM,0,3.2,0));
+      // Throne back (tall, imposing)
+      gg.add(box(16,22,1.8,thrM,0,14.2,7));
+      // Throne armrests
+      gg.add(box(1.8,5,13,thrM,-8,5.7,0));gg.add(box(1.8,5,13,thrM,8,5.7,0));
+      // Throne ice spires at top
+      for(const[ix,iz2,h2] of [[-5,6.5,9],[0,7,12],[5,6.5,9],[-8,5.5,7],[8,5.5,7]]){const sp=new THREE.Mesh(new THREE.ConeGeometry(.9,h2,5),thrM);sp.position.set(ix,25,iz2);gg.add(sp);}
+      // Frost runes on throne back (interior face)
+      for(let r=0;r<4;r++)for(let c=0;c<5;c++){const rm=new THREE.Mesh(new THREE.BoxGeometry(.3,.3,.14),neon(0x88eeff,1.8));rm.position.set(-3.6+c*1.8,5+r*3,6.1);gg.add(rm);}
+      // ─ GIANT BODY ─
+      // Torso
+      const torso=box(9,10,6.5,gM,0,7.5,0);gg.add(torso);
+      // Head (sphere)
+      const head=new THREE.Mesh(new THREE.SphereGeometry(4,18,18),gM);head.position.set(0,16,-.5);gg.add(head);
+      // FIERCE RED EYES
+      const eyeL=new THREE.Mesh(new THREE.SphereGeometry(.7,10,10),eyeM);eyeL.position.set(-1.4,16.8,-4);gg.add(eyeL);
+      const eyeR=new THREE.Mesh(new THREE.SphereGeometry(.7,10,10),eyeM);eyeR.position.set(1.4,16.8,-4);gg.add(eyeR);
+      // Red eye point light (floods surroundings in menacing red)
+      const eL=new THREE.PointLight(0xff0800,6,50,2);eL.position.set(0,16.5,-4);gg.add(eL);
+      // Brow ridge
+      gg.add(box(7,.9,1.2,gM,0,18.2,-3.6));
+      // Jaw
+      gg.add(box(5.5,1.2,1.5,gM,0,14,-3.8));
+      // Crown of icicle spikes
+      for(let i=0;i<9;i++){const a=i/9*Math.PI*2;const sp=new THREE.Mesh(new THREE.ConeGeometry(.5,rand(3,6),5),thrM);sp.position.set(Math.cos(a)*3.4,rand(19,23),Math.sin(a)*3.4-.5);gg.add(sp);}
+      // Left arm (resting on armrest)
+      gg.add(box(2.5,5,3.5,gM,-7,8,0));gg.add(box(2,2.5,9,gM,-7.5,4.5,-1.5));
+      gg.add(box(2.8,2.5,2.8,gM,-7.5,4.5,-6.8)); // left fist
+      for(let k=0;k<3;k++)gg.add(box(.9,1.2,2,gM,-7.5+(k-1)*.8,3.6,-7.8));
+      // Right arm
+      gg.add(box(2.5,5,3.5,gM,7,8,0));gg.add(box(2,2.5,9,gM,7.5,4.5,-1.5));
+      gg.add(box(2.8,2.5,2.8,gM,7.5,4.5,-6.8));
+      for(let k=0;k<3;k++)gg.add(box(.9,1.2,2,gM,7.5+(k-1)*.8,3.6,-7.8));
+      // Seated legs (bent forward)
+      gg.add(box(3.2,2.8,8,gM,-3.5,3,-5));gg.add(box(3.2,2.8,8,gM,3.5,3,-5));
+      gg.add(box(2.8,7,3,gM,-3.5,-2,-9));gg.add(box(2.8,7,3,gM,3.5,-2,-9));
+      // Frost aura rings
+      for(const[rs,col2,iI] of [[18,0x44d4ff,1.8],[26,0x88eeff,1.4],[34,0x22aadd,1.1]]){const ring=new THREE.Mesh(new THREE.TorusGeometry(rs,.45,6,30),neon(col2,iI));ring.rotation.x=Math.PI/2;ring.position.y=.6;gg.add(ring);}
+      addLabel('ICE GIANT ─ THRONE OF FROST',GX,32,GZ);markers.push({name:'Ice Giant Throne',x:GX,z:GZ});
+    })();
+    addLabel('ICE CITY',CX,80,CZ);
   })();
 
   /* ===== ROADS + OVERPASSES (connect the districts) ===== */
@@ -1752,9 +1921,9 @@
   }
   function releaseForcePush(){
     if(fpCharge<.05){fpCharge=0;document.getElementById('fpFill').style.width='0%';return;}
-    const dmg=40+90*fpCharge;const range=4+12*fpCharge;const cp=camera.position.clone();
+    const dmg=80+200*fpCharge;const range=8+25*fpCharge;const cp=camera.position.clone();
     const fwd=new THREE.Vector3();camera.getWorldDirection(fwd);
-    for(const g of golems){if(!g.userData.alive)continue;const toG=new THREE.Vector3().subVectors(g.position.clone().setY(cp.y),cp);const dist=toG.length();if(dist>range+5)continue;const dot=toG.clone().normalize().dot(fwd);if(dot>.15||dist<4){damageGolem(g,dmg);g.position.addScaledVector(toG.clone().normalize(),dist<4?10:6);}}
+    for(const g of golems){if(!g.userData.alive)continue;const toG=new THREE.Vector3().subVectors(g.position.clone().setY(cp.y),cp);const dist=toG.length();if(dist>range+5)continue;const dot=toG.clone().normalize().dot(fwd);if(dot>-.05||dist<5){damageGolem(g,dmg);g.position.addScaledVector(toG.clone().normalize(),dist<5?20:14);}}
     const fl=document.getElementById('fpFlash');fl.style.transition='none';fl.style.opacity=Math.min(1,.4+fpCharge);requestAnimationFrame(()=>{fl.style.transition='opacity .5s ease';fl.style.opacity='0';});
     recoil=.2;sfx(fpCharge>=0.99?'push_full':'push');fpCharge=0;document.getElementById('fpFill').style.width='0%';
   }
@@ -1810,8 +1979,8 @@
   let waveStuckTimer=0; // seconds since last kill when hostiles remain — triggers teleport
   let lastKillT=0;
   // Endless mode: per-island kill counters + island detection
-  const islandPolys=[null,null,null,null,null,null]; // filled after island polys defined
-  const endlessKills=[0,0,0,0,0,0],endlessWaveN=[1,1,1,1,1,1];
+  const islandPolys=[null,null,null,null,null,null,null]; // filled after island polys defined (0-6)
+  const endlessKills=[0,0,0,0,0,0,0],endlessWaveN=[1,1,1,1,1,1,1];
   let endlessSpawnTimer=0;
 
   function addScore(n){state.score+=n;document.getElementById('scoreVal').textContent=state.score.toLocaleString();}
@@ -1844,10 +2013,10 @@
   // Spawns are spread across ALL islands/districts, not just a ring around the player.
   // Near islands only until wave 6; all 5 open after that so the world feels alive
   // fill endless island poly refs now that all island polys exist
-  [isl0,isl1,isl2,isl3,isl4,isl5].forEach((p,i)=>islandPolys[i]=p);
+  [isl0,isl1,isl2,isl3,isl4,isl5,isl6].forEach((p,i)=>islandPolys[i]=p);
   function currentIsland(){for(let i=0;i<islandPolys.length;i++)if(polyInside(camera.position.x,camera.position.z,islandPolys[i]))return i;return-1;}
 
-  const SPAWN_ISLANDS=[isl0,isl1,isl2,isl3,isl4,isl5].map(poly=>{let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;poly.forEach(p=>{x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);z0=Math.min(z0,p[1]);z1=Math.max(z1,p[1]);});return{poly,x0,x1,z0,z1};});
+  const SPAWN_ISLANDS=[isl0,isl1,isl2,isl3,isl4,isl5,isl6].map(poly=>{let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;poly.forEach(p=>{x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);z0=Math.min(z0,p[1]);z1=Math.max(z1,p[1]);});return{poly,x0,x1,z0,z1};});
   function randSpawnPoint(){
     // Always ≥70 % near the player so golems are visible and fights feel immediate.
     // Far-island spawns open up after wave 5 for world-scale variety.
