@@ -292,14 +292,8 @@
     if(scene.userData.btSkyLights){const q=Math.max(0,(t-.22)/.78);for(const s of scene.userData.btSkyLights){s.beamMat.opacity=q*.32;s.light.intensity=q*4.5;}}
   }
   function updateTimeOfDay(dt){
-    const inJapan=camera.position.x>=JAPAN_X;
-    const inBlackthorn=polyInside(camera.position.x,camera.position.z,isl3);
-    const inPyramid=polyInside(camera.position.x,camera.position.z,isl5);
-    const inNight=(inJapan||inBlackthorn)&&!inPyramid;
-    if(inNight&&!timeState._warned){timeState._warned=true;showBanner('NIGHTFALL',inBlackthorn?'Darkness falls on BLACKTHORN':'Entering Japan',2200);}
-    if(!inNight)timeState._warned=false;
-    const target=inNight?1:0;
-    if(Math.abs(timeState.t-target)>0.001){timeState.t+=Math.sign(target-timeState.t)*dt*0.32;timeState.t=TL.clamp(timeState.t,0,1);applyTimeOfDay(timeState.t);}
+    // Always daytime — nightfall removed globally
+    if(timeState.t>0.001){timeState.t=Math.max(0,timeState.t-dt*0.5);applyTimeOfDay(timeState.t);}
   }
 
   /* ============================= SKY ============================= */
@@ -1119,96 +1113,68 @@
     }
   }
 
-  /* ===== ICE CASTLE (massive, on isl4) ===== */
+  /* ===== SNOWY TUNDRA (isl4) — replaces Ice Castle ===== */
   (()=>{
     const cx=162,cz=-168;
-    const ice =new THREE.MeshStandardMaterial({color:0xbfe8ff,roughness:.22,metalness:.08,transparent:true,opacity:.94,emissive:0x14384c,emissiveIntensity:.18});
-    const iceD=new THREE.MeshStandardMaterial({color:0x8fc8ec,roughness:.3,metalness:.05,transparent:true,opacity:.95,emissive:0x0e2a3c,emissiveIntensity:.15});
-    const glow=neon(0x6fe9ff,1.6);
-    const cg=new THREE.Group();cg.position.set(cx,0,cz);world.add(cg);
-    // raised motte base
-    cg.add(cyl(46,52,3,40,iceD,0,1.4,0));addWalk(cx,cz,80,80,2.9);
-    function tower(x,z,r,h){
-      const t=cyl(r,r*1.15,h,18,ice,x,h/2+2.9,z);cg.add(t);addColl(t);
-      cg.add(cyl(r*1.18,r*1.18,.6,18,glow,x,h+2.9,z));
-      const cap=new THREE.Mesh(new THREE.ConeGeometry(r*1.4,r*2.4,18),iceD);cap.position.set(x,h+2.9+r*1.2,z);cap.castShadow=false;cg.add(cap);
-      cg.add(cyl(.18,.18,r*2.0,8,glow,x,h+2.9+r*1.2,z));
-      // battlement notches
-      for(let a=0;a<10;a++){const an=a/10*Math.PI*2;cg.add(box(.7,1.0,.7,ice,x+Math.cos(an)*r*1.1,h+3.4,z+Math.sin(an)*r*1.1));}
+    const snowM=new THREE.MeshStandardMaterial({color:0xf0f8ff,roughness:.92,metalness:.0});
+    const snowD=new THREE.MeshStandardMaterial({color:0xd0e8f8,roughness:.88,metalness:.0});
+    const barkM2=new THREE.MeshStandardMaterial({color:0x3a2a18,roughness:.95});
+    const pineM2=new THREE.MeshStandardMaterial({color:0x1a4820,roughness:.88});
+    const iceS=new THREE.MeshStandardMaterial({color:0xbfe8ff,roughness:.12,metalness:.06,transparent:true,opacity:.82,emissive:0x0e2848,emissiveIntensity:.18});
+    const glowT=neon(0x6fe9ff,1.6);
+    const cabM=new THREE.MeshStandardMaterial({color:0x5a3a22,roughness:.9});
+    addWalk(cx,cz,200,180,.2);
+
+    // Pine tree
+    function pine(px,pz){
+      const h=rand(7,15);world.add(cyl(.45,.65,h,8,barkM2,px,h/2,pz));
+      for(let l=0;l<3;l++){const by=h*.28+l*h*.22,br=h*.26*(1-l*.22);const c=new THREE.Mesh(new THREE.ConeGeometry(br,h*.29,8),pineM2);c.position.set(px,by,pz);world.add(c);}
+      const sc=new THREE.Mesh(new THREE.ConeGeometry(h*.12,h*.12,8),snowM);sc.position.set(px,h*.86,pz);world.add(sc);
     }
-    // curtain walls (square) + corner towers; north wall has door gap for entrance
-    const wsz=34;
-    // North wall split into left/right pieces with 8-unit door gap in the center
-    const nwHalf=(wsz*2+6)/2,gapW=8,nwPieceW=nwHalf-gapW/2;
-    for(const[wx,wz,ww,wd] of [
-      [-nwHalf+nwPieceW/2,-wsz,nwPieceW,3],   // north-left
-      [nwHalf-nwPieceW/2,-wsz,nwPieceW,3],    // north-right
-      [0,wsz,wsz*2+6,3],[-wsz,0,3,wsz*2],[wsz,0,3,wsz*2]]){
-      const wseg=box(ww,9,wd,iceD,wx,7.4,wz);cg.add(wseg);addColl(wseg);
-      // battlements along the top
-      const along=ww>wd?ww:wd;const horiz=ww>wd;
-      for(let i=-along/2+2;i<along/2;i+=3){cg.add(box(horiz?1.2:1.6,1.4,horiz?1.6:1.2,ice,wx+(horiz?i:0),12.4,wz+(horiz?0:i)));}
+    // Snow drift (rounded mound)
+    function drift(px,pz,r){const d=new THREE.Mesh(new THREE.SphereGeometry(r,12,8),snowM);d.scale.y=.32;d.position.set(px,r*.16,pz);world.add(d);}
+    // Snowman
+    function snowman(px,pz){
+      [1.1,.75,.52].forEach((r,i)=>{const s=new THREE.Mesh(new THREE.SphereGeometry(r,10,8),snowM);s.position.set(px,r+[0,2.1,3.6][i],pz);world.add(s);});
+      const eyeM2=new THREE.MeshStandardMaterial({color:0x111111,roughness:.8});
+      world.add(new THREE.Mesh(new THREE.SphereGeometry(.1,6,6),eyeM2)).position.set(px-.22,4.3,pz-.47);
+      world.add(new THREE.Mesh(new THREE.SphereGeometry(.1,6,6),eyeM2)).position.set(px+.22,4.3,pz-.47);
+      world.add(new THREE.Mesh(new THREE.ConeGeometry(.1,.45,6),new THREE.MeshStandardMaterial({color:0xff7700}))).position.set(px,3.96,pz-.54);
     }
-    tower(-wsz,-wsz,5,20);tower(wsz,-wsz,5,20);tower(-wsz,wsz,5,20);tower(wsz,wsz,5,20);
-    // gatehouse (front, facing -z toward bridge) with open arch entrance
-    cg.add(box((nwPieceW)*2,11,5,ice,0,8.4,-wsz)); // gatehouse header (no gap collision)
-    // neon door frame to highlight entrance
-    cg.add(box(.4,9.5,.6,glow,-gapW/2,7.65,-wsz));  // left jamb
-    cg.add(box(.4,9.5,.6,glow,gapW/2,7.65,-wsz));   // right jamb
-    cg.add(box(gapW+1,.5,.6,glow,0,12.4,-wsz));      // lintel
-    const gate=box(6,8.5,5.6,new THREE.MeshStandardMaterial({color:0x0a1c28,roughness:.6,emissive:0x0a3550,emissiveIntensity:.4}),0,5.65,-wsz);cg.add(gate);
-    tower(-9,-wsz,3.4,16);tower(9,-wsz,3.4,16);
-    // ===== ENTERABLE KEEP — hollow walls, 2 interior floors, twin staircases =====
-    const KB=2.9,KH=22; // base Y, wall height
-    const f1=KB+9.1,f2=KB+17.1; // top of floor slabs (walking surfaces)
-    // four perimeter walls with door gap on south face (z=+9 local, toward the yard)
-    function kw(w,h,d,x,z){const m=box(w,h,d,ice,x,KB+h/2,z);cg.add(m);addColl(m);}
-    kw(20,KH,2,0,-9);            // north wall
-    kw(6.5,KH,2,-6.75,9);       // south-west
-    kw(6.5,KH,2,6.75,9);        // south-east  (door gap x=-3.5…+3.5, h=7)
-    cg.add(box(7,2,2,ice,0,KB+7.5,9));       // door lintel
-    kw(2,KH,16,9,0);             // east wall
-    kw(2,KH,16,-9,0);            // west wall
-    // interior floor slabs
-    [[f1],[f2]].forEach(([fy])=>{
-      cg.add(box(16,.6,16,iceD,0,fy+.3,0));
-      addWalk(cx,cz,16,16,fy+.6);
-      // four neon edge-strips so floors read clearly
-      [[8.2,0,16],[-8.2,0,16],[0,8.2,16],[0,-8.2,16]].forEach(([ex,ez,len])=>{
-        const horiz=ez===0;cg.add(box(horiz?len:.3,.15,horiz?.3:len,glow,ex,fy+.65,ez));});
-    });
-    // staircase helper: builds step boxes and addWalk entries
-    function mkStairs(lx,zFrom,zTo,yBase,yTop){
-      const n=Math.abs(Math.round(zTo-zFrom));const dz=(zTo-zFrom)/n,dy=(yTop-yBase)/n;
-      for(let i=0;i<n;i++){
-        const lz=zFrom+i*dz+dz/2,ly=yBase+i*dy;
-        cg.add(box(3,dy+.05,Math.abs(dz)*.96,iceD,lx,ly+dy/2,lz));
-        addWalk(cx+lx,cz+lz,3,Math.abs(dz)*.96,ly+dy);
-      }
+    // Log cabin
+    function cabin(px,pz,w,d,h){
+      world.add(box(w,h,d,cabM,px,h/2,pz));addColl(box(w,h,d,cabM,px,h/2,pz));addWalk(px,pz,w-1,d-1,h+.1);
+      world.add(new THREE.Mesh(new THREE.ConeGeometry(w*.65,h*.55,4),snowD)).position.set(px,h+h*.275,pz);
+      world.add(box(.3,h+.5,.3,barkM2,px-w*.4,h*.25,pz+d*.4));world.add(box(.3,h+.5,.3,barkM2,px+w*.4,h*.25,pz+d*.4));
+      const door=box(1.4,2.6,.12,new THREE.MeshStandardMaterial({color:0x3a2010,roughness:.9}),px,1.3,pz-d/2-.07);world.add(door);
+      addLabel('Tundra Lodge',px,h+3,pz);
     }
-    // Stair 1 — NE corner, east side: ground → floor 1 (going north, z decreasing)
-    mkStairs(5.5,5.5,-5.5,KB,f1+.6);
-    // Stair 2 — SW corner, west side: floor 1 → floor 2 (going south, z increasing)
-    mkStairs(-5.5,-5.5,5.5,f1+.6,f2+.6);
-    // Stair 3 — NE, floor 2 → roof battlement walkway
-    mkStairs(5.5,5.5,-5.5,f2+.6,KB+KH+.5);
-    // Roof walkway (top of keep walls)
-    addWalk(cx,cz,16,16,KB+KH+.5);
-    // Battlement ring + spire (unchanged from original)
-    cg.add(box(22,1.2,22,glow,0,KB+KH+.6,0));
-    for(let a=0;a<14;a++){const an=a/14*Math.PI*2;cg.add(box(1.4,2,1.4,iceD,Math.cos(an)*10.5,KB+KH+1.6,Math.sin(an)*10.5));}
-    const keepRoof=new THREE.Mesh(new THREE.ConeGeometry(15,18,4),iceD);keepRoof.position.set(0,KB+KH+14,0);keepRoof.rotation.y=Math.PI/4;cg.add(keepRoof);
-    const spire=new THREE.Mesh(new THREE.ConeGeometry(3.4,16,12),ice);spire.position.set(0,KB+KH+26,0);cg.add(spire);
-    cg.add(cyl(.22,.22,14,8,glow,0,50,0));
-    // icy crystals scattered on the grounds
-    for(let i=0;i<26;i++){const a=rand(0,Math.PI*2),rr=rand(20,46);const sx=Math.cos(a)*rr,sz=Math.sin(a)*rr;const cr=new THREE.Mesh(new THREE.ConeGeometry(rand(.6,1.6),rand(3,7),6),ice);cr.position.set(sx,2.9+1.5,sz);cr.rotation.set(rand(-.2,.2),rand(0,6),rand(-.2,.2));cg.add(cr);}
-    addLabel('Ice Castle',cx,58,cz);
-    // long ice bridge from harbor city (isl1) up to the castle island
+    // Frozen pond
+    const pond=new THREE.Mesh(new THREE.CylinderGeometry(22,22,.06,24),iceS);pond.position.set(cx-20,0.05,cz+30);world.add(pond);
+    // Ice crystals on pond edge
+    for(let i=0;i<14;i++){const a=i/14*Math.PI*2;const cr=new THREE.Mesh(new THREE.ConeGeometry(rand(.4,1.2),rand(2,6),6),iceS);cr.position.set(cx-20+Math.cos(a)*23,.3+rand(.5,2),cz+30+Math.sin(a)*23);cr.rotation.set(rand(-.2,.2),rand(0,6),rand(-.22,.22));world.add(cr);}
+    // Glow light over pond
+    const pl2=new THREE.PointLight(0x88ccff,1.8,60,2);pl2.position.set(cx-20,8,cz+30);world.add(pl2);
+    // 40 pine trees scattered around island
+    for(let i=0;i<40;i++){const a=rand(0,Math.PI*2),r=rand(18,88);pine(cx+Math.cos(a)*r,cz+Math.sin(a)*r);}
+    // Snow drifts
+    for(let i=0;i<22;i++){const a=rand(0,Math.PI*2),r=rand(10,80);drift(cx+Math.cos(a)*r,cz+Math.sin(a)*r,rand(2.5,6));}
+    // 3 snowmen near center
+    for(const[sx,sz] of [[cx-15,cz-10],[cx+8,cz-20],[cx+22,cz+10]])snowman(sx,sz);
+    // 2 log cabins
+    cabin(cx-45,cz-55,18,12,6);cabin(cx+38,cz+48,14,10,5);
+    // Scattered ice crystals
+    for(let i=0;i<30;i++){const a=rand(0,Math.PI*2),r=rand(15,75);const cr=new THREE.Mesh(new THREE.ConeGeometry(rand(.4,1.5),rand(2,8),6),iceS);cr.position.set(cx+Math.cos(a)*r,.3+rand(.5,3),cz+Math.sin(a)*r);cr.rotation.set(rand(-.2,.2),rand(0,6),rand(-.2,.2));world.add(cr);}
+    // Neon aurora strips high above (decorative)
+    for(const[col,h2] of[[0x44ffaa,90],[0x88eeff,110],[0xaa44ff,130]]){const s=new THREE.Mesh(new THREE.PlaneGeometry(180,8),neon(col,.35));s.position.set(cx,h2,cz);s.rotation.x=-Math.PI/2;world.add(s);}
+    addLabel('Frozen Tundra',cx,12,cz-80);markers.push({name:'Frozen Tundra',x:cx,z:cz});
+    // ── ICE BRIDGE: Harbor (isl1) → Tundra (isl4) ──
     const bx=170,bz0=-66,bz1=-118,blen=bz1-bz0,bmz=(bz0+bz1)/2;
     const bridge=new THREE.Group();world.add(bridge);
-    const deck=box(9,.5,Math.abs(blen),ice,bx,1.0,bmz);bridge.add(deck);addWalk(bx,bmz,9,Math.abs(blen),1.25);
-    for(let z=bz0;z>=bz1;z-=4){bridge.add(cyl(.5,.7,2.4,8,iceD,bx-4,0,z));bridge.add(cyl(.5,.7,2.4,8,iceD,bx+4,0,z));}
-    for(const s of[-1,1]){bridge.add(box(.4,1.3,Math.abs(blen),glow,bx+s*4.2,1.8,bmz));}
+    const deck=box(9,.5,Math.abs(blen),iceS,bx,1.0,bmz);bridge.add(deck);addWalk(bx,bmz,9,Math.abs(blen),1.25);
+    for(let z=bz0;z>=bz1;z-=4){bridge.add(cyl(.5,.7,2.4,8,snowD,bx-4,0,z));bridge.add(cyl(.5,.7,2.4,8,snowD,bx+4,0,z));}
+    for(const s of[-1,1]){bridge.add(box(.4,1.3,Math.abs(blen),glowT,bx+s*4.2,1.8,bmz));}
+    addLabel('Ice Bridge',bx,5,bmz);
   })();
 
   /* ===== ICE CITY — frozen street grid like Japan, skyscrapers + Ice Giant ===== */
