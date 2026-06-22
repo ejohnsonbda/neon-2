@@ -80,6 +80,12 @@
     #gameover .stats .s .l{font-size:12px;letter-spacing:2px;color:rgba(255,255,255,.55);}
     #audioBtn{position:fixed;left:18px;bottom:120px;z-index:7;cursor:pointer;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-size:18px;background:rgba(6,12,24,.6);border:1px solid rgba(25,245,255,.3);color:var(--cyan);backdrop-filter:blur(8px);}
     #loading{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:#04060f;color:var(--cyan);font-family:'Orbitron';letter-spacing:4px;}
+    #modeHud{position:fixed;top:18px;left:50%;transform:translateX(-50%);background:rgba(4,8,18,.82);border:1px solid #ffe45c;border-radius:12px;padding:8px 22px;color:#ffe45c;font-family:Orbitron,Arial,sans-serif;font-size:15px;letter-spacing:2px;display:none;text-align:center;z-index:50;}
+    #modePicker{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(4,8,24,.96);border:2px solid #19f5ff;border-radius:18px;padding:32px 48px;color:#fff;font-family:Orbitron,Arial,sans-serif;display:none;z-index:200;text-align:center;min-width:340px;}
+    #modePicker h2{color:#19f5ff;margin:0 0 22px;font-size:18px;letter-spacing:4px;}
+    .modeBtn{display:block;width:100%;margin:10px 0;padding:12px 0;background:rgba(25,245,255,.12);border:1px solid #19f5ff;border-radius:8px;color:#fff;font-family:Orbitron,Arial,sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;}
+    .modeBtn:hover{background:rgba(25,245,255,.28);}
+    #modeClose{margin-top:14px;color:#888;font-size:11px;cursor:pointer;letter-spacing:2px;}
   </style>
 </head>
 <body>
@@ -151,6 +157,15 @@
     </div>
     <button id="restartBtn">REBOOT &amp; RETRY</button>
   </div>
+</div>
+
+<div id="modeHud"></div>
+<div id="modePicker">
+  <h2>⬡ GAME MODES</h2>
+  <button class="modeBtn" id="btnStarSearch">⭐ STAR SEARCH — Collect all stars</button>
+  <button class="modeBtn" id="btnUfoAttack">🛸 UFO ASSAULT — Survive the invasion</button>
+  <button class="modeBtn" id="btnFreePlay">◇ FREE PLAY — Normal mode</button>
+  <div id="modeClose">[ TAB ] CLOSE</div>
 </div>
 
 <audio id="bgm" loop preload="auto" src="project/uploads/Final_Arena_Run.mp3"></audio>
@@ -337,9 +352,9 @@
   function polyInside(x,z,poly){let inside=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const xi=poly[i][0],zi=poly[i][1],xj=poly[j][0],zj=poly[j][1];if(((zi>z)!==(zj>z))&&(x<(xj-xi)*(z-zi)/(zj-zi)+xi))inside=!inside;}return inside;}
 
   /* ============================= ISLANDS ============================= */
-  const isl0=[[-63,-28],[-54,-44],[-32,-48],[-7,-43],[22,-45],[52,-35],[68,-15],[72,10],[58,29],[26,38],[-2,44],[-34,38],[-61,23],[-75,0]];
-  const isl1=[[98,-36],[112,-52],[142,-62],[177,-62],[205,-48],[220,-20],[223,10],[214,34],[190,56],[156,66],[122,58],[99,36],[89,4]];
-  const isl2=[[262,-48],[285,-72],[323,-78],[363,-70],[396,-48],[415,-16],[420,23],[402,56],[364,78],[320,82],[284,65],[260,34],[252,-6]];
+  const isl0=[[-87,-38],[-75,-61],[-44,-62],[-9,-59],[32,-62],[74,-48],[76,-20],[76,15],[76,41],[37,54],[-2,60],[-47,54],[-85,33],[-104,1]];
+  const isl1=[[84,-51],[94,-73],[136,-87],[185,-87],[225,-68],[232,-28],[232,14],[232,47],[204,78],[156,92],[108,81],[84,50],[84,5]];
+  const isl2=[[242,-68],[264,-102],[317,-110],[373,-99],[419,-68],[446,-24],[453,31],[428,76],[374,76],[313,76],[262,76],[242,46],[242,-10]];
 
   function makeIsland(poly,mat=M.grass){
     const sh=new THREE.Shape();sh.moveTo(poly[0][0],poly[0][1]);for(let i=1;i<poly.length;i++)sh.lineTo(poly[i][0],poly[i][1]);sh.closePath();
@@ -354,15 +369,15 @@
   makeIsland(isl0);makeIsland(isl1);
   makeIsland(isl2,new THREE.MeshStandardMaterial({map:TX.grass,color:0x8898a0,roughness:.92}));
   // isl3: BLACKTHORN — gothic horror city island
-  const isl3=[[-128,122],[-98,98],[-42,88],[10,86],[65,90],[115,100],[148,118],[158,142],[154,168],[128,196],[68,204],[8,204],[-28,200],[-75,190],[-112,172],[-130,148]];
+  const isl3=[[-182,111],[-140,77],[-62,72],[11,72],[88,72],[158,80],[165,105],[165,139],[165,175],[165,204],[92,204],[8,204],[-42,204],[-108,204],[-160,181],[-185,147]];
   makeIsland(isl3,new THREE.MeshStandardMaterial({color:0x252a27,roughness:.97,metalness:.01}));
   // isl4: massive frozen island to the north (ice castle)
-  const isl4=[[64,-150],[92,-205],[140,-242],[196,-244],[240,-214],[260,-168],[252,-122],[214,-94],[160,-86],[108,-98],[74,-122]];
+  const isl4=[[24,-142],[64,-219],[131,-271],[209,-274],[271,-232],[299,-167],[288,-128],[234,-128],[159,-128],[86,-128],[38,-128]];
   const iceGround=new THREE.MeshStandardMaterial({color:0xcfeeff,roughness:.32,metalness:.06,emissive:0x16384a,emissiveIntensity:.12});
   makeIsland(isl4,iceGround);
 
   // isl5: PYRAMID ISLAND — massive desert island south of the graveyard (isl3), always daytime
-  const isl5=[[-18,206],[50,198],[135,193],[220,196],[295,210],[340,238],[355,282],[345,335],[315,375],[262,402],[185,412],[108,406],[48,386],[8,356],[-12,310],[-15,258]];
+  const isl5=[[-93,208],[2,208],[121,208],[240,208],[264,220],[374,238],[429,270],[415,344],[373,400],[299,438],[191,452],[83,444],[-1,416],[-57,374],[-85,309],[-89,236]];
   const desertGround=new THREE.MeshStandardMaterial({color:0xb8935a,roughness:.96,metalness:.01});
   makeIsland(isl5,desertGround);
   // isl6: JUNGLE FORTRESS — expanded ancient prison island
@@ -1919,6 +1934,8 @@
   function toggleDual(){const w=WEAPONS[wIdx];if(!w.dualable){showBanner('NO DUAL','this weapon',700);return;}dualWield=!dualWield;equipWeapon();sfx('switch');showBanner(dualWield?'⚡ DUAL-WIELD':'SINGLE','',800);}
 
   let recoil=0;const projs=[];const MAX_P=90;
+  // assaultUFOs and ufoEProjs are populated by the game modes section below
+  let assaultUFOs=[],ufoEProjs=[];
   function spawnProj(from,dir,w){
     if(projs.length>=MAX_P){const old=projs.shift();scene.remove(old.mesh);}
     const m=new THREE.Mesh(new THREE.SphereGeometry(w.pellets>1?.12:.16,8,8),neon(w.color,3));
@@ -1937,6 +1954,8 @@
       }
       // ── check city plane hits ──
       {let hitP=false;for(const pl of cityPlanes){if(!pl.alive||pl.falling)continue;if(distSegPoint(p.mesh.position,next,pl.mesh.position)<9){damagePlane(pl,p.dmg);scene.remove(p.mesh);projs.splice(i,1);hitP=true;break;}}if(hitP)continue;}
+      // ── check assault UFO hits ──
+      {let hit=false;for(const u of assaultUFOs){if(!u.alive)continue;if(p.mesh.position.distanceTo(u.mesh.position)<7){u.hp-=p.dmg||50;if(u.hp<=0)u.alive=false;hit=true;break;}}if(hit){scene.remove(p.mesh);projs.splice(i,1);continue;}}
       p.mesh.position.copy(next);
       if(p.mesh.position.y<0.2||p.life>6){if(p.splash>0){spawnBurst(p.mesh.position.clone(),p.col);for(const g of golems){if(!g.userData.alive)continue;const dd=g.position.distanceTo(p.mesh.position);if(dd<p.splash)damageGolem(g,p.splashDmg*(1-dd/p.splash));}}scene.remove(p.mesh);projs.splice(i,1);}
     }
@@ -2463,6 +2482,147 @@
     mctx.fillStyle='#19f5ff';mctx.beginPath();mctx.moveTo(cx,cy-8);mctx.lineTo(cx+6,cy+7);mctx.lineTo(cx,cy+3);mctx.lineTo(cx-6,cy+7);mctx.closePath();mctx.fill();
   }
 
+  /* ===== GAME MODES ===== */
+  const modeHud=document.getElementById('modeHud');
+  const modePicker=document.getElementById('modePicker');
+  let activeMode=null; // 'starSearch' | 'ufoAttack' | null
+
+  // ── TAB key toggles mode picker ──
+  window.addEventListener('keydown',e=>{if(e.code==='Tab'){e.preventDefault();modePicker.style.display=modePicker.style.display==='block'?'none':'block';}});
+  document.getElementById('btnFreePlay').onclick=()=>{setMode(null);modePicker.style.display='none';};
+  document.getElementById('btnStarSearch').onclick=()=>{setMode('starSearch');modePicker.style.display='none';};
+  document.getElementById('btnUfoAttack').onclick=()=>{setMode('ufoAttack');modePicker.style.display='none';};
+  document.getElementById('modeClose').onclick=()=>{modePicker.style.display='none';};
+
+  function setMode(m){
+    activeMode=m;
+    if(m==='starSearch')initStarSearch();
+    else if(m==='ufoAttack')initUfoAttack();
+    else{modeHud.style.display='none';clearStars();clearUfoAttack();}
+  }
+
+  // ── STAR SEARCH ──
+  const starMeshes=[];
+  const starPositions=[
+    // isl0 (home)
+    [-20,1.5,10],[12,1.5,-30],[40,1.5,-8],[0,1.5,32],[-50,1.5,12],
+    // isl1 (harbor)
+    [130,1.5,5],[170,1.5,-40],[195,1.5,20],[155,1.5,45],[110,1.5,-10],
+    // isl2 (tokyo)
+    [300,1.5,-20],[360,1.5,30],[400,1.5,-40],[280,1.5,40],[340,1.5,55],
+    // isl3 (blackthorn)
+    [-40,1.5,140],[30,1.5,110],[80,1.5,160],[10,1.5,185],[-80,1.5,175],
+    // isl4 (tundra)
+    [162,1.5,-140],[140,1.5,-195],[190,1.5,-200],[220,1.5,-160],[120,1.5,-155],
+    // isl5 (pyramid)
+    [60,1.5,260],[170,1.5,310],[280,1.5,330],[180,1.5,380],[100,1.5,340],
+    // isl6 (jungle)
+    [280,1.5,110],[320,1.5,155],[370,1.5,130],[310,1.5,200],[420,1.5,155],
+  ];
+  let starsCollected=0;
+  const starMatG=neon(0xffe45c,3.2);
+
+  function initStarSearch(){
+    clearStars();starsCollected=0;
+    for(const[sx,sy,sz] of starPositions){
+      const g=new THREE.Group();scene.add(g);
+      const s=new THREE.Mesh(new THREE.OctahedronGeometry(1.1,0),starMatG);
+      g.add(s);
+      const pl3=new THREE.PointLight(0xffe45c,2.8,18,2);pl3.position.y=0;g.add(pl3);
+      g.position.set(sx,sy,sz);
+      starMeshes.push({group:g,sphere:s,active:true,pos:new THREE.Vector3(sx,sy,sz)});
+    }
+    modeHud.style.display='block';
+    updateStarHud();
+    showBanner('STAR SEARCH','Collect all '+starPositions.length+' stars! [ TAB ] for modes',3000);
+  }
+  function clearStars(){for(const s of starMeshes){scene.remove(s.group);}starMeshes.length=0;}
+  function updateStarHud(){modeHud.innerHTML='⭐ STARS: '+starsCollected+' / '+starPositions.length;}
+
+  function updateStarSearch(dt){
+    const cp=camera.position;
+    for(const st of starMeshes){
+      if(!st.active)continue;
+      st.sphere.rotation.y+=dt*1.8;st.group.position.y=st.pos.y+Math.sin(Date.now()*.002)*.4;
+      if(cp.distanceTo(st.pos)<3.2){
+        st.active=false;scene.remove(st.group);starsCollected++;
+        updateStarHud();addScore(500);sfx('switch');
+        if(starsCollected>=starPositions.length){showBanner('⭐ ALL STARS FOUND!','You collected every star! +'+starPositions.length*500+' PTS',4000);addScore(starPositions.length*500);setMode(null);}
+      }
+    }
+  }
+
+  // ── UFO ASSAULT ──
+  let ufoWave=0,ufoRemaining=0;
+  const ufoAssaultMat=neon(0x00ffcc,3);
+  const ufoAssaultEye=neon(0xff2200,4);
+
+  function initUfoAttack(){
+    clearUfoAttack();ufoWave=0;
+    modeHud.style.display='block';
+    spawnUfoWave();
+    showBanner('UFO ASSAULT','Survive the invasion! Shoot them down!',2500);
+  }
+  function clearUfoAttack(){for(const u of assaultUFOs){scene.remove(u.mesh);}assaultUFOs.length=0;for(const p of ufoEProjs){scene.remove(p.mesh);}ufoEProjs.length=0;}
+
+  function spawnUfoWave(){
+    ufoWave++;const count=3+ufoWave*2;ufoRemaining=count;
+    const spawnRing=[[0,1.5,0],[160,1.5,-30],[330,1.5,0],[10,1.5,150],[162,1.5,-168],[170,1.5,310],[315,1.5,155]];
+    for(let i=0;i<count;i++){
+      const base=spawnRing[i%spawnRing.length];
+      const ug=new THREE.Group();ug.position.set(base[0]+rand(-30,30),rand(22,45),base[2]+rand(-30,30));scene.add(ug);
+      const disk=new THREE.Mesh(new THREE.CylinderGeometry(7,4.5,.9,16),ufoAssaultMat);ug.add(disk);
+      const dome=new THREE.Mesh(new THREE.SphereGeometry(3.5,12,8,0,Math.PI*2,0,Math.PI/2),ufoAssaultMat);dome.position.y=.45;ug.add(dome);
+      const eye=new THREE.Mesh(new THREE.SphereGeometry(.9,8,8),ufoAssaultEye);eye.position.y=.1;ug.add(eye);
+      const ul=new THREE.PointLight(0x00ffcc,3,28,2);ul.position.y=-1;ug.add(ul);
+      assaultUFOs.push({mesh:ug,hp:80+ufoWave*20,alive:true,shootCD:rand(1,3),orbitAngle:rand(0,6),orbitR:rand(18,42),baseX:base[0],baseZ:base[2]});
+    }
+    updateUfoHud();
+  }
+  function updateUfoHud(){modeHud.innerHTML='🛸 WAVE '+ufoWave+' — UFOs: '+ufoRemaining+' remaining';}
+
+  function updateUfoAttack(dt){
+    const cp=camera.position;
+    for(let i=assaultUFOs.length-1;i>=0;i--){
+      const u=assaultUFOs[i];if(!u.alive)continue;
+      // orbit + drift toward player
+      u.orbitAngle+=dt*.45;
+      const tx=cp.x+Math.cos(u.orbitAngle)*u.orbitR,tz=cp.z+Math.sin(u.orbitAngle)*u.orbitR;
+      u.mesh.position.x+=(tx-u.mesh.position.x)*dt*.4;
+      u.mesh.position.z+=(tz-u.mesh.position.z)*dt*.4;
+      u.mesh.position.y+=(cp.y+rand(18,32)-u.mesh.position.y)*dt*.25;
+      u.mesh.rotation.y+=dt*.6;
+      // shoot at player
+      u.shootCD-=dt;
+      if(u.shootCD<=0){
+        u.shootCD=2.2-ufoWave*.08;
+        const dir=new THREE.Vector3().subVectors(cp,u.mesh.position).normalize();
+        const pm=neon(0xff2200,4);
+        const pb=new THREE.Mesh(new THREE.SphereGeometry(.35,6,6),pm);
+        pb.position.copy(u.mesh.position);scene.add(pb);
+        ufoEProjs.push({mesh:pb,vel:dir.multiplyScalar(18+ufoWave*1.5),life:4});
+      }
+    }
+    // move UFO projectiles
+    for(let i=ufoEProjs.length-1;i>=0;i--){
+      const p=ufoEProjs[i];p.life-=dt;p.mesh.position.addScaledVector(p.vel,dt);
+      if(p.life<=0){scene.remove(p.mesh);ufoEProjs.splice(i,1);continue;}
+      if(p.mesh.position.distanceTo(cp)<2.2){
+        state.hp=Math.max(0,state.hp-12);updateVitals();sfx('hurt');
+        scene.remove(p.mesh);ufoEProjs.splice(i,1);
+        if(state.hp<=0){showBanner('DESTROYED','The UFOs defeated you!',3000);setMode(null);}
+      }
+    }
+    // check if any were killed by player projectiles
+    for(let i=assaultUFOs.length-1;i>=0;i--){
+      const u=assaultUFOs[i];if(!u.alive||u.hp>0)continue;
+      u.alive=false;scene.remove(u.mesh);assaultUFOs.splice(i,1);
+      ufoRemaining--;addScore(1500+ufoWave*500);sfx('blast');showBanner('UFO DOWN','+'+(1500+ufoWave*500)+' PTS',1500);
+      updateUfoHud();
+      if(ufoRemaining<=0){showBanner('WAVE '+ufoWave+' CLEARED','Brace for Wave '+(ufoWave+1)+'!',2500);setTimeout(()=>{if(activeMode==='ufoAttack')spawnUfoWave();},3000);}
+    }
+  }
+
   /* ============================= LOOP ============================= */
   let mapTick=0;
   function animate(){
@@ -2502,6 +2662,8 @@
       // 2X damage boost timer
       if(state.dmgMultTimer>0){state.dmgMultTimer-=dt;if(state.dmgMultTimer<=0){state.dmgMult=1;}updateBoostHud();}
       updateGolems(dt);updateProjs(dt);updateEProjs(dt);updateBursts(dt);updatePickups(dt);updateLightnings(dt);updateTimeOfDay(dt);updateCityTraffic(dt);updateCityPlanes(dt);
+      if(activeMode==='starSearch')updateStarSearch(dt);
+      if(activeMode==='ufoAttack')updateUfoAttack(dt);
       // wave spawning
       if(state.endless){
         // Endless: maintain 18 golems alive, spawn on current island or near player
