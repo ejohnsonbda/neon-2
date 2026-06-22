@@ -226,10 +226,11 @@
     if(type==='stone'){g.strokeStyle='rgba(0,0,0,.2)';for(let y=0;y<sz;y+=18){for(let x=(y/18%2)*14;x<sz;x+=28){g.strokeRect(x,y,28,18);}}for(let i=0;i<180;i++){g.fillStyle=`rgba(160,220,255,${rand(.02,.06)})`;g.fillRect(rand(0,sz),rand(0,sz),rand(1,4),rand(1,4));}}
     if(type==='path'){g.strokeStyle='rgba(160,180,220,.12)';for(let y=0;y<sz;y+=13){g.beginPath();g.moveTo(0,y);g.lineTo(sz,y+rand(-3,3));g.stroke();}}
     if(type==='asphalt'){for(let i=0;i<1200;i++){const v=Math.floor(rand(20,62));g.fillStyle=`rgba(${v},${v},${v+8},${rand(.1,.4)})`;g.fillRect(rand(0,sz),rand(0,sz),rand(.6,2),rand(.6,2));}}
+    if(type==='brick'){g.fillStyle='#3d2018';g.fillRect(0,0,sz,sz);for(let y=0;y<sz;y+=18){const off=(Math.floor(y/18)%2)*26;for(let x=-26+off;x<sz+26;x+=52){const bv=90+Math.floor(rand(0,40));g.fillStyle=`rgb(${bv+Math.floor(rand(-12,12))},${Math.floor(bv*.38+rand(-4,4))},${Math.floor(bv*.25+rand(-3,3))})`;g.fillRect(x+1,y+2,50,14);}g.strokeStyle='rgba(18,8,4,.7)';g.lineWidth=1.2;g.beginPath();g.moveTo(0,y);g.lineTo(sz,y);g.stroke();}for(let i=0;i<50;i++){g.fillStyle=`rgba(${Math.floor(rand(20,50))},${Math.floor(rand(6,16))},${Math.floor(rand(3,10))},.28)`;g.fillRect(rand(0,sz),rand(0,sz),rand(4,22),rand(2,6));}}
     const tex=new THREE.CanvasTexture(cv);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.anisotropy=renderer.capabilities.getMaxAnisotropy();return tex;
   }
-  const TX={grass:mkTex('grass',COLORS.grass),stucco:mkTex('stucco',COLORS.stucco),roof:mkTex('roof',COLORS.roof),wood:mkTex('wood',COLORS.wood),stone:mkTex('stone',COLORS.stone),path:mkTex('path',COLORS.path),asphalt:mkTex('asphalt',0x1a1f29)};
-  TX.grass.repeat.set(12,12);TX.stucco.repeat.set(2,2);TX.roof.repeat.set(2,5);TX.wood.repeat.set(3,3);TX.stone.repeat.set(4,4);TX.path.repeat.set(3,1);TX.asphalt.repeat.set(8,8);
+  const TX={grass:mkTex('grass',COLORS.grass),stucco:mkTex('stucco',COLORS.stucco),roof:mkTex('roof',COLORS.roof),wood:mkTex('wood',COLORS.wood),stone:mkTex('stone',COLORS.stone),path:mkTex('path',COLORS.path),asphalt:mkTex('asphalt',0x1a1f29),brick:mkTex('brick',0x3d2018,256)};
+  TX.grass.repeat.set(12,12);TX.stucco.repeat.set(2,2);TX.roof.repeat.set(2,5);TX.wood.repeat.set(3,3);TX.stone.repeat.set(4,4);TX.path.repeat.set(3,1);TX.asphalt.repeat.set(8,8);TX.brick.repeat.set(4,6);
 
   const M={
     grass:new THREE.MeshStandardMaterial({map:TX.grass,roughness:.95}),
@@ -484,9 +485,10 @@
   mkBldg({name:'Workshop',x:-19,z:-34,w:25,d:11,h:4.2});
   mkBldg({name:'Caretaker',x:47,z:15,w:18,d:15,h:4.6,type:'guest'});
 
+  const cityTraffic=[],cityPlanes=[];
   /* ===== BLACKTHORN: Gothic Horror City (isl3 — expanded ×3) ===== */
   (()=>{
-    const gS=new THREE.MeshStandardMaterial({color:0x3a3d42,roughness:.94,metalness:.04,flatShading:true});
+    const gS=new THREE.MeshStandardMaterial({map:TX.brick,color:0x5c3c28,roughness:.93,metalness:.03});
     const gD=new THREE.MeshStandardMaterial({color:0x1e2026,roughness:.96,flatShading:true});
     const gR=new THREE.MeshStandardMaterial({color:0x18191d,roughness:.9});
     const cob=new THREE.MeshStandardMaterial({color:0x2c2e33,roughness:.97});
@@ -761,15 +763,142 @@
       addLabel("Blackthorn Graveyard",20,8,158);
     })();
 
+    // ── TERRAIN HILLS & CURBS ──
+    const hillM=new THREE.MeshStandardMaterial({map:TX.brick,color:0x252a27,roughness:.97});
+    world.add(box(48,.9,48,hillM,115,0.45,130));addWalk(115,130,48,48,.92);
+    world.add(box(32,1.3,42,hillM,-96,0.65,120));addWalk(-96,120,32,42,1.32);
+    world.add(box(40,.75,40,hillM,122,0.38,185));addWalk(122,185,40,40,.77);
+    // Approach ramps onto hills
+    (()=>{const rM=new THREE.MeshStandardMaterial({map:TX.brick,color:0x2c2e33,roughness:.95});const r1=box(10,.9,12,rM,102,.45,125);r1.rotation.z=.08;world.add(r1);addWalk(102,125,10,12,.5);const r2=box(10,1.3,12,rM,-85,.65,120);r2.rotation.z=-.1;world.add(r2);addWalk(-85,120,10,12,.7);})();
+    // Street corner curb stones at major intersections
+    for(const[cx,cz] of[[-2,133],[26,133],[-2,147],[26,147]])world.add(box(3,.9,3,gS,cx,.45,cz));
+    for(const[cx,cz] of[[94,133],[106,133],[94,147],[106,147]])world.add(box(2.5,.8,2.5,gS,cx,.4,cz));
+    for(const[cx,cz] of[[-84,133],[-72,133],[-84,147],[-72,147]])world.add(box(2.5,.8,2.5,gS,cx,.4,cz));
+    // Intersection lamp posts
+    for(const[cx,cz] of[[12,133],[12,147],[100,133],[100,147],[-78,133],[-78,147]]){world.add(box(.5,5.5,.5,gD,cx,2.75,cz));world.add(box(2.8,.28,.28,gD,cx+1.3,5.4,cz));world.add(box(.65,.65,.65,trch,cx+2.8,5.5,cz));}
+
+    // ── GOTHIC HORSE CARRIAGES (live traffic) ──
+    (()=>{
+      function mkCarriage(){
+        const bM=new THREE.MeshStandardMaterial({map:TX.brick,color:0x2a1a0e,roughness:.88});
+        const wM=new THREE.MeshStandardMaterial({color:0x141414,roughness:.7,metalness:.3});
+        const lM=neon(0xff9900,2.0);
+        const g=new THREE.Group();
+        const bod=new THREE.Mesh(new THREE.BoxGeometry(2.6,2,5),bM);bod.position.y=1.5;g.add(bod);
+        const drv=new THREE.Mesh(new THREE.BoxGeometry(2.6,.9,1.6),bM);drv.position.set(0,2.9,-2.4);g.add(drv);
+        const rf=new THREE.Mesh(new THREE.BoxGeometry(2.85,.3,3.2),bM);rf.position.set(0,2.6,-.5);g.add(rf);
+        for(const lx of[-1,1]){const ln=new THREE.Mesh(new THREE.BoxGeometry(.36,.5,.36),lM);ln.position.set(lx*1.35,2.6,-2.4);g.add(ln);}
+        const whs=[];
+        for(const[wx,wz] of[[-1.6,-1.5],[-1.6,1.5],[1.6,-1.5],[1.6,1.5]]){const wh=new THREE.Mesh(new THREE.CylinderGeometry(.65,.65,.36,10),wM);wh.rotation.z=Math.PI/2;wh.position.set(wx,.65,wz);g.add(wh);whs.push(wh);}
+        g.castShadow=true;
+        return{mesh:g,wheels:whs};
+      }
+      const routes=[
+        [[12,100],[12,196]],
+        [[-108,140],[148,140]],
+        [[100,106],[100,192]],
+        [[-78,106],[-78,192]],
+        [[12,120],[40,140],[12,160],[-16,140]],
+      ];
+      for(let i=0;i<5;i++){const{mesh,wheels}=mkCarriage();const route=routes[i%routes.length];const si=Math.floor(rnd()*route.length);mesh.position.set(route[si][0],.65,route[si][1]);scene.add(mesh);cityTraffic.push({mesh,wheels,route,wpIdx:(si+1)%route.length,speed:3+rnd()*3});}
+    })();
+
+    // ── STEAMPUNK BIPLANES (orbit BLACKTHORN — shoot them down for 2000 pts!) ──
+    (()=>{
+      function mkPlane(){
+        const pM=new THREE.MeshStandardMaterial({color:0x1a1e26,roughness:.6,metalness:.45,flatShading:true});
+        const wM=new THREE.MeshStandardMaterial({color:0x2a2e3c,roughness:.7,metalness:.2,flatShading:true});
+        const g=new THREE.Group();
+        g.add(new THREE.Mesh(new THREE.BoxGeometry(2.2,1.6,10),pM));
+        const wL=new THREE.Mesh(new THREE.BoxGeometry(18,.4,3.5),wM);wL.position.set(0,-.3,.5);g.add(wL);
+        const wU=new THREE.Mesh(new THREE.BoxGeometry(14,.3,3),wM);wU.position.set(0,1.9,.5);g.add(wU);
+        const tl=new THREE.Mesh(new THREE.BoxGeometry(7,.25,2.4),wM);tl.position.set(0,.2,4.2);g.add(tl);
+        const rd=new THREE.Mesh(new THREE.BoxGeometry(.3,2.4,2.4),wM);rd.position.set(0,1.5,4.2);g.add(rd);
+        const pg=new THREE.Group();pg.position.set(0,.1,-5.2);
+        pg.add(new THREE.Mesh(new THREE.BoxGeometry(5.5,.3,.3),neon(0xff4400,2.2)));
+        pg.add(new THREE.Mesh(new THREE.BoxGeometry(.3,5.5,.3),neon(0xff4400,2.2)));
+        g.add(pg);
+        g.userData.bodyMats=[pM,wM];
+        g.castShadow=true;
+        return{mesh:g,prop:pg};
+      }
+      for(const[cx,cz,radius,alt,spd,phase] of[[12,148,90,66,.38,0],[12,148,126,84,.24,2.1],[12,148,62,74,.58,4.2]]){
+        const{mesh,prop}=mkPlane();
+        mesh.position.set(cx+Math.cos(phase)*radius,alt,cz+Math.sin(phase)*radius);
+        scene.add(mesh);
+        cityPlanes.push({mesh,prop,cx,cz,radius,altitude:alt,orbitSpeed:spd,angle:phase,hp:80,alive:true,falling:false,flash:0,fallSpd:0,fallVx:0,fallVz:0});
+      }
+    })();
+
     addLabel("BLACKTHORN",12,9,91);
   })();
-  // Bridge: home island to BLACKTHORN (graveyard)
+  // Gothic stone arch bridge — home island to BLACKTHORN
   (()=>{
-    const bg=new THREE.Group();world.add(bg);const x0=8,z0=44,z1=90,len=z1-z0;const mz=(z0+z1)/2;
-    bg.add(box(6,.4,len,M.wood,x0,.7,mz));addWalk(x0,mz,6,len,.9);
-    for(let z=z0;z<z1;z+=2)bg.add(box(6.5,.12,.2,M.darkWood,x0,.92,z));
-    for(const s of[-1,1]){bg.add(box(.2,1.0,len,M.trim,x0+s*2.85,1.2,mz));for(let z=z0;z<=z1;z+=6)bg.add(cyl(.12,.14,1.3,8,M.darkWood,x0+s*2.7,.6,z));}
+    const stM=new THREE.MeshStandardMaterial({map:TX.brick,color:0x2a2e34,roughness:.92});
+    const bg=new THREE.Group();world.add(bg);
+    const x0=8,z0=44,z1=90,len=z1-z0,mz=(z0+z1)/2;
+    // Road deck
+    bg.add(box(7,.55,len,stM,x0,.78,mz));addWalk(x0,mz,7,len,.98);
+    // Cobble lines across deck
+    for(let z=z0;z<z1;z+=3.5)bg.add(box(7.1,.12,.22,M.stone,x0,.95,z));
+    // Arch pillars + cross-arch at every 10 units
+    for(let z=z0+7;z<z1-5;z+=12){
+      for(const s of[-1,1]){
+        bg.add(box(1.4,3.2,1.4,stM,x0+s*4,.78+1.6,z));
+        bg.add(box(2.2,.5,1.4,stM,x0+s*2.4,3.6,z));
+      }
+      bg.add(box(9,.65,1.4,stM,x0,4.0,z));
+    }
+    // Parapet walls (solid sides)
+    world.add(wallB(.55,1.8,len,x0-3.5,1.8,mz,stM));
+    world.add(wallB(.55,1.8,len,x0+3.5,1.8,mz,stM));
+    // Merlons on parapets
+    for(let z=z0;z<=z1;z+=5)for(const s of[-1,1])bg.add(box(.9,1.2,.9,stM,x0+s*3.5,3.3,z));
+    // Gothic lamp posts
+    for(const bz of[z0+8,mz,z1-8])for(const s of[-1,1]){
+      bg.add(box(.38,5,.38,stM,x0+s*3.5,3.7,bz));
+      bg.add(box(.38,.38,2,stM,x0+s*3.5,5.7,bz-1));
+      bg.add(box(.65,.65,.65,neon(0xff9900,1.8),x0+s*3.5,5.75,bz-2));
+    }
+    addLabel('Bridge to BLACKTHORN',x0,8,mz);
   })();
+
+  /* ===== BLACKTHORN TRAFFIC + AIR SYSTEMS ===== */
+  function updateCityTraffic(dt){
+    for(const v of cityTraffic){
+      const wp=v.route[v.wpIdx];
+      const dx=wp[0]-v.mesh.position.x,dz=wp[1]-v.mesh.position.z;
+      const dist=Math.sqrt(dx*dx+dz*dz);
+      if(dist<2){v.wpIdx=(v.wpIdx+1)%v.route.length;}
+      else{v.mesh.position.x+=dx/dist*v.speed*dt;v.mesh.position.z+=dz/dist*v.speed*dt;v.mesh.rotation.y=Math.atan2(dx,dz);}
+      for(const w of v.wheels)w.rotation.y+=v.speed*dt*.85;
+    }
+  }
+  function damagePlane(pl,dmg){
+    if(!pl.alive||pl.falling)return;
+    pl.hp-=dmg;pl.flash=.22;
+    if(pl.hp<=0){pl.falling=true;pl.fallVx=rand(-14,14);pl.fallVz=rand(-14,14);showBanner('AIRCRAFT DOWNED','+2000 PTS',2400);addScore(2000);sfx('blast');}
+  }
+  function updateCityPlanes(dt){
+    for(let i=cityPlanes.length-1;i>=0;i--){
+      const pl=cityPlanes[i];
+      if(!pl.alive){scene.remove(pl.mesh);cityPlanes.splice(i,1);continue;}
+      if(pl.falling){
+        pl.fallSpd+=28*dt;pl.mesh.position.y-=pl.fallSpd*dt;pl.mesh.position.x+=pl.fallVx*dt;pl.mesh.position.z+=pl.fallVz*dt;
+        pl.mesh.rotation.x+=dt*2.5;pl.mesh.rotation.z+=dt*1.8;
+        if(pl.mesh.position.y<5){spawnBurst(pl.mesh.position.clone(),0xff4400);spawnBurst(pl.mesh.position.clone().setY(8),0xffaa00);sfx('blast');pl.alive=false;}
+        continue;
+      }
+      pl.angle+=pl.orbitSpeed*dt;
+      pl.mesh.position.x=pl.cx+Math.cos(pl.angle)*pl.radius;
+      pl.mesh.position.z=pl.cz+Math.sin(pl.angle)*pl.radius;
+      pl.mesh.position.y=pl.altitude+Math.sin(pl.angle*2)*2.5;
+      pl.mesh.rotation.y=Math.atan2(-Math.sin(pl.angle),Math.cos(pl.angle))+Math.PI/2;
+      pl.prop.rotation.z+=dt*16;
+      if(pl.flash>0){pl.flash=Math.max(0,pl.flash-dt);for(const m of pl.mesh.userData.bodyMats){m.emissive.setHex(0xee3300);m.emissiveIntensity=pl.flash*5;}}
+      else if(pl.mesh.userData.bodyMats[0].emissiveIntensity>0){for(const m of pl.mesh.userData.bodyMats){m.emissive.setHex(0);m.emissiveIntensity=0;}}
+    }
+  }
 
   /* ===== ICE CASTLE (massive, on isl4) ===== */
   (()=>{
@@ -1511,8 +1640,10 @@
         else damageGolem(hitG,p.dmg);
         scene.remove(p.mesh);projs.splice(i,1);continue;
       }
+      // ── check city plane hits ──
+      {let hitP=false;for(const pl of cityPlanes){if(!pl.alive||pl.falling)continue;if(distSegPoint(p.mesh.position,next,pl.mesh.position)<9){damagePlane(pl,p.dmg);scene.remove(p.mesh);projs.splice(i,1);hitP=true;break;}}if(hitP)continue;}
       p.mesh.position.copy(next);
-      if(p.mesh.position.y<0.2||p.life>3){if(p.splash>0){spawnBurst(p.mesh.position.clone(),p.col);for(const g of golems){if(!g.userData.alive)continue;const dd=g.position.distanceTo(p.mesh.position);if(dd<p.splash)damageGolem(g,p.splashDmg*(1-dd/p.splash));}}scene.remove(p.mesh);projs.splice(i,1);}
+      if(p.mesh.position.y<0.2||p.life>6){if(p.splash>0){spawnBurst(p.mesh.position.clone(),p.col);for(const g of golems){if(!g.userData.alive)continue;const dd=g.position.distanceTo(p.mesh.position);if(dd<p.splash)damageGolem(g,p.splashDmg*(1-dd/p.splash));}}scene.remove(p.mesh);projs.splice(i,1);}
     }
   }
   function distSegPoint(a,b,p){const ab=new THREE.Vector3().subVectors(b,a);const t=TL.clamp(new THREE.Vector3().subVectors(p,a).dot(ab)/Math.max(ab.lengthSq(),1e-6),0,1);return new THREE.Vector3().copy(a).addScaledVector(ab,t).distanceTo(p);}
@@ -2063,7 +2194,7 @@
       scopeEl.style.opacity=zooming?'1':'0';
       // 2X damage boost timer
       if(state.dmgMultTimer>0){state.dmgMultTimer-=dt;if(state.dmgMultTimer<=0){state.dmgMult=1;}updateBoostHud();}
-      updateGolems(dt);updateProjs(dt);updateEProjs(dt);updateBursts(dt);updatePickups(dt);updateLightnings(dt);updateTimeOfDay(dt);
+      updateGolems(dt);updateProjs(dt);updateEProjs(dt);updateBursts(dt);updatePickups(dt);updateLightnings(dt);updateTimeOfDay(dt);updateCityTraffic(dt);updateCityPlanes(dt);
       // wave spawning
       if(state.endless){
         // Endless: maintain 18 golems alive, spawn on current island or near player
