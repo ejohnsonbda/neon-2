@@ -153,7 +153,7 @@
   </div>
 </div>
 
-<audio id="bgm" loop preload="auto" src="project/uploads/music_file-1781583270135.mp3"></audio>
+<audio id="bgm" loop preload="auto" src="project/uploads/Final_Arena_Run.mp3"></audio>
 <audio id="sfx_shot" preload="auto" src="project/uploads/pistol_uzi.mp3"></audio>
 <audio id="sfx_smg" preload="auto" src="project/uploads/capaholiczsfx-machine-gun-529098.mp3"></audio>
 <audio id="sfx_blast" preload="auto" src="project/uploads/sovetsky_rastov72-usas-12-sound-effect-353937.mp3"></audio>
@@ -162,7 +162,7 @@
 <audio id="sfx_thunder" preload="auto" src="project/uploads/patricksilvey-weather-lightning-2-464187.mp3"></audio>
 <audio id="sfx_push" preload="auto" src="project/uploads/freesound_community-magic-strike-5856.mp3"></audio>
 <audio id="sfx_push_full" preload="auto" src="project/uploads/allmity_push.mp3"></audio>
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="project/js/three.min.js"></script>
 <script>window.__NEON_LOW_MEMORY=true;</script>
 <script src="project/js/enemies.js"></script>
 <script>
@@ -289,13 +289,16 @@
     const neonI=d.neon+(k.neon-d.neon)*t;nfl1.intensity=neonI;nfl2.intensity=neonI;
     const starO=d.star+(k.star-d.star)*t;if(scene.userData.stars)scene.userData.stars.material.opacity=starO;
     const moonI=d.moon+(k.moon-d.moon)*t;if(scene.userData.moon)scene.userData.moon.material.emissiveIntensity=.15+moonI*.6;if(scene.userData.moonLight)scene.userData.moonLight.intensity=moonI;
+    if(scene.userData.btSkyLights){const q=Math.max(0,(t-.22)/.78);for(const s of scene.userData.btSkyLights){s.beamMat.opacity=q*.32;s.light.intensity=q*4.5;}}
   }
   function updateTimeOfDay(dt){
     const inJapan=camera.position.x>=JAPAN_X;
-    // isl5 (pyramid island) always stays in daylight regardless of x
+    const inBlackthorn=polyInside(camera.position.x,camera.position.z,isl3);
     const inPyramid=polyInside(camera.position.x,camera.position.z,isl5);
-    if(inJapan&&!inPyramid&&!timeState._warned){timeState._warned=true;showBanner('NIGHTFALL','Entering Japan',2200);}
-    const target=(inJapan&&!inPyramid)?1:0;
+    const inNight=(inJapan||inBlackthorn)&&!inPyramid;
+    if(inNight&&!timeState._warned){timeState._warned=true;showBanner('NIGHTFALL',inBlackthorn?'Darkness falls on BLACKTHORN':'Entering Japan',2200);}
+    if(!inNight)timeState._warned=false;
+    const target=inNight?1:0;
     if(Math.abs(timeState.t-target)>0.001){timeState.t+=Math.sign(target-timeState.t)*dt*0.32;timeState.t=TL.clamp(timeState.t,0,1);applyTimeOfDay(timeState.t);}
   }
 
@@ -314,6 +317,19 @@
     function cloud(x,y,z,s){const g=new THREE.Group();g.position.set(x,y,z);for(let i=0;i<6;i++){const p=new THREE.Mesh(new THREE.SphereGeometry(rand(5,9),12,12),cmat);p.position.set(rand(-10,10),rand(-2,2),rand(-4,4));p.scale.set(rand(.9,1.4),rand(.5,1),rand(.9,1.4));g.add(p);}g.scale.setScalar(s);scene.add(g);clouds.push(g);}
     cloud(-70,64,-80,1.3);cloud(120,78,40,1.6);cloud(320,72,-30,1.9);cloud(520,88,25,2.1);cloud(640,74,-55,1.5);
     scene.userData.clouds=clouds;scene.userData.cloudMat=cmat;
+  })();
+  // BLACKTHORN searchlight beams — fade in at nightfall
+  (()=>{
+    const bsl=[];
+    for(const[sx,sz] of[[12,95],[12,148],[-10,186],[-32,116]]){
+      const bm=new THREE.MeshBasicMaterial({color:0x2244bb,transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending});
+      const beam=new THREE.Mesh(new THREE.CylinderGeometry(1,5,160,8,1,true),bm);
+      beam.position.set(sx,82,sz);scene.add(beam);
+      const sl=new THREE.SpotLight(0x3355cc,0,260,Math.PI/12,.85,1.5);
+      sl.position.set(sx,6,sz);const tgt=new THREE.Object3D();tgt.position.set(sx,0,sz);scene.add(tgt);sl.target=tgt;scene.add(sl);
+      bsl.push({beamMat:bm,light:sl});
+    }
+    scene.userData.btSkyLights=bsl;
   })();
   applyTimeOfDay(0); // start in full daylight
 
@@ -514,7 +530,11 @@
       const nH=22;
       cg.add(box(26,.3,52,gS,0,.15,0));addWalk(CX,CZ,24,50,.35);
       // Nave walls
-      cg.add(wallB(26,nH,.6,0,nH/2,-26,gS));
+      // Entrance wall: 10u door gap at center (split into left/right + header above)
+      const _cdw=10,_cdh=7,_cpw=(26-_cdw)/2;
+      cg.add(wallB(_cpw,nH,.6,-(_cdw/2+_cpw/2),nH/2,-26,gS));
+      cg.add(wallB(_cpw,nH,.6,(_cdw/2+_cpw/2),nH/2,-26,gS));
+      cg.add(wallB(26,nH-_cdh,.6,0,_cdh+(nH-_cdh)/2,-26,gS));
       cg.add(wallB(26,nH,.6,0,nH/2,26,gS));
       cg.add(wallB(.6,nH,52,-13,nH/2,0,gS));
       cg.add(wallB(.6,nH,52,13,nH/2,0,gS));
@@ -552,7 +572,7 @@
 
     // ── GOTHIC TOWNHOUSE HELPER ──
     function gHouse(hx,hz,hw,hd,hh,lbl){
-      const dw=1.6,dh=2.3,sw=(hw-dw)/2;
+      const dw=2.4,dh=2.6,sw=(hw-dw)/2;
       world.add(box(hw,.2,hd,gS,hx,.1,hz));
       if(sw>0.3){world.add(wallB(sw,hh,.4,hx-(dw/2+sw/2),hh/2+.2,hz-hd/2,gS));world.add(wallB(sw,hh,.4,hx+(dw/2+sw/2),hh/2+.2,hz-hd/2,gS));}
       world.add(wallB(hw,hh-dh,.4,hx,dh+(hh-dh)/2+.2,hz-hd/2,gS));
@@ -612,7 +632,8 @@
     (()=>{
       const TX=-102,TZ=118,TW=22,TD=20,TH=9;
       world.add(box(TW,.2,TD,gS,TX,.1,TZ));addWalk(TX,TZ,TW-1,TD-1,.35);
-      world.add(wallB(TW,TH,.5,TX,TH/2+.2,TZ-TD/2,gS));
+      // South entrance wall: 3u door gap
+      {const _tdw=3,_tpw=(TW-_tdw)/2,_tdh=2.8;world.add(wallB(_tpw,TH,.5,TX-(_tdw/2+_tpw/2),TH/2+.2,TZ-TD/2,gS));world.add(wallB(_tpw,TH,.5,TX+(_tdw/2+_tpw/2),TH/2+.2,TZ-TD/2,gS));world.add(wallB(TW,TH-_tdh,.5,TX,_tdh+(TH-_tdh)/2+.2,TZ-TD/2,gS));}
       world.add(wallB(TW,TH,.5,TX,TH/2+.2,TZ+TD/2,gS));
       world.add(wallB(.5,TH,TD,TX-TW/2,TH/2+.2,TZ,gS));
       world.add(wallB(.5,TH,TD,TX+TW/2,TH/2+.2,TZ,gS));
@@ -638,7 +659,8 @@
     (()=>{
       const MX=-102,MZ=168,MW=28,MD=26,MH=10;
       world.add(box(MW,.2,MD,gS,MX,.1,MZ));addWalk(MX,MZ,MW-2,MD-2,.35);
-      world.add(wallB(MW,MH,.6,MX,MH/2+.2,MZ-MD/2,gS));
+      // South entrance wall: 4u door gap
+      {const _mdw=4,_mpw=(MW-_mdw)/2,_mdh=3.2;world.add(wallB(_mpw,MH,.6,MX-(_mdw/2+_mpw/2),MH/2+.2,MZ-MD/2,gS));world.add(wallB(_mpw,MH,.6,MX+(_mdw/2+_mpw/2),MH/2+.2,MZ-MD/2,gS));world.add(wallB(MW,MH-_mdh,.6,MX,_mdh+(MH-_mdh)/2+.2,MZ-MD/2,gS));}
       world.add(wallB(MW,MH,.6,MX,MH/2+.2,MZ+MD/2,gS));
       world.add(wallB(.6,MH,MD,MX-MW/2,MH/2+.2,MZ,gS));
       world.add(wallB(.6,MH,MD,MX+MW/2,MH/2+.2,MZ,gS));
@@ -660,7 +682,11 @@
       const cg2=new THREE.Group();cg2.position.set(CX2,0,CZ2);world.add(cg2);
       const cH=9;
       cg2.add(box(14,.2,28,gS,0,.1,0));addWalk(CX2,CZ2,12,26,.35);
-      cg2.add(wallB(14,cH,.5,0,cH/2+.2,-14,gS));
+      // Entrance wall: 3.5u door gap at center
+      const _c2dw=3.5,_c2dh=3,_c2pw=(14-_c2dw)/2;
+      cg2.add(wallB(_c2pw,cH,.5,-(_c2dw/2+_c2pw/2),cH/2+.2,-14,gS));
+      cg2.add(wallB(_c2pw,cH,.5,(_c2dw/2+_c2pw/2),cH/2+.2,-14,gS));
+      cg2.add(wallB(14,cH-_c2dh,.5,0,_c2dh+(cH-_c2dh)/2+.2,-14,gS));
       cg2.add(wallB(14,cH,.5,0,cH/2+.2,14,gS));
       cg2.add(wallB(.5,cH,28,-7,cH/2+.2,0,gS));
       cg2.add(wallB(.5,cH,28,7,cH/2+.2,0,gS));
@@ -822,12 +848,30 @@
         g.castShadow=true;
         return{mesh:g,prop:pg};
       }
-      for(const[cx,cz,radius,alt,spd,phase] of[[12,148,90,66,.38,0],[12,148,126,84,.24,2.1],[12,148,62,74,.58,4.2]]){
+      for(const[cx,cz,radius,alt,spd,phase] of[
+        [12,148,90,66,.38,0],[12,148,126,84,.24,2.1],[12,148,62,74,.58,4.2],
+        [12,148,150,78,.17,1.0],[12,148,76,70,.49,3.2],[12,148,110,92,.30,5.5]
+      ]){
         const{mesh,prop}=mkPlane();
         mesh.position.set(cx+Math.cos(phase)*radius,alt,cz+Math.sin(phase)*radius);
         scene.add(mesh);
         cityPlanes.push({mesh,prop,cx,cz,radius,altitude:alt,orbitSpeed:spd,angle:phase,hp:80,alive:true,falling:false,flash:0,fallSpd:0,fallVx:0,fallVz:0});
       }
+      // ── UFO MOTHERSHIP (very high orbit — worth 10000 pts!) ──
+      (()=>{
+        const uM=new THREE.MeshStandardMaterial({color:0x445566,metalness:.95,roughness:.08});
+        const uG=neon(0x00eeff,2.8);const uG2=neon(0x00ffcc,3.2);
+        const ug=new THREE.Group();
+        ug.add(new THREE.Mesh(new THREE.CylinderGeometry(10,14,3,24),uM));
+        const dome=new THREE.Mesh(new THREE.SphereGeometry(8,20,12,0,Math.PI*2,0,Math.PI/2),uM);dome.position.y=1.5;ug.add(dome);
+        const ring=new THREE.Mesh(new THREE.TorusGeometry(13,.9,8,32),uG);ring.rotation.x=Math.PI/2;ug.add(ring);
+        const ring2=new THREE.Mesh(new THREE.TorusGeometry(10,.4,6,28),uG2);ring2.rotation.x=Math.PI/2;ring2.position.y=-0.5;ug.add(ring2);
+        for(let i=0;i<10;i++){const a=i/10*Math.PI*2;const bl=new THREE.Mesh(new THREE.SphereGeometry(.85,8,8),neon(i%2?0x00ffcc:0x0088ff,3.5));bl.position.set(Math.cos(a)*10,-1.2,Math.sin(a)*10);ug.add(bl);}
+        const uLight=new THREE.PointLight(0x00eeff,3.5,60,2);uLight.position.set(0,-2,0);ug.add(uLight);
+        ug.userData.bodyMats=[uM];ug.castShadow=true;
+        ug.position.set(12+200,140,148);scene.add(ug);
+        cityPlanes.push({mesh:ug,prop:ring,cx:12,cz:148,radius:200,altitude:140,orbitSpeed:.10,angle:0,hp:500,alive:true,falling:false,flash:0,fallSpd:0,fallVx:0,fallVz:0,isUFO:true});
+      })();
     })();
 
     addLabel("BLACKTHORN",12,9,91);
@@ -877,7 +921,7 @@
   function damagePlane(pl,dmg){
     if(!pl.alive||pl.falling)return;
     pl.hp-=dmg;pl.flash=.22;
-    if(pl.hp<=0){pl.falling=true;pl.fallVx=rand(-14,14);pl.fallVz=rand(-14,14);showBanner('AIRCRAFT DOWNED','+2000 PTS',2400);addScore(2000);sfx('blast');}
+    if(pl.hp<=0){pl.falling=true;pl.fallVx=rand(-14,14);pl.fallVz=rand(-14,14);const pts=pl.isUFO?10000:2000;showBanner(pl.isUFO?'UFO DESTROYED!':'AIRCRAFT DOWNED','+'+pts+' PTS',2400);addScore(pts);sfx('blast');}
   }
   function updateCityPlanes(dt){
     for(let i=cityPlanes.length-1;i>=0;i--){
@@ -893,8 +937,8 @@
       pl.mesh.position.x=pl.cx+Math.cos(pl.angle)*pl.radius;
       pl.mesh.position.z=pl.cz+Math.sin(pl.angle)*pl.radius;
       pl.mesh.position.y=pl.altitude+Math.sin(pl.angle*2)*2.5;
-      pl.mesh.rotation.y=Math.atan2(-Math.sin(pl.angle),Math.cos(pl.angle))+Math.PI/2;
-      pl.prop.rotation.z+=dt*16;
+      if(pl.isUFO){pl.mesh.rotation.y+=dt*.4;pl.prop.rotation.z+=dt*1.2;}
+      else{pl.mesh.rotation.y=Math.atan2(-Math.sin(pl.angle),Math.cos(pl.angle))+Math.PI/2;pl.prop.rotation.z+=dt*16;}
       if(pl.flash>0){pl.flash=Math.max(0,pl.flash-dt);for(const m of pl.mesh.userData.bodyMats){m.emissive.setHex(0xee3300);m.emissiveIntensity=pl.flash*5;}}
       else if(pl.mesh.userData.bodyMats[0].emissiveIntensity>0){for(const m of pl.mesh.userData.bodyMats){m.emissive.setHex(0);m.emissiveIntensity=0;}}
     }
@@ -1399,6 +1443,7 @@
     {name:'PLASMA',       color:0x9b5cff,dmg:42, cd:.62, spd:80, spread:.005,ammo:60,     maxAmmo:60,      dualable:false,pellets:1,splash:5.5,splashDmg:55},
     {name:'PULSE CANNON', color:0xff7a18,dmg:8,  cd:.045,spd:210,spread:.016,ammo:700,    maxAmmo:700,     dualable:false,pellets:1,splash:0},
     {name:'BAZOOKA',      color:0xff5a1e,dmg:80, cd:1.05,spd:62, spread:.004,ammo:18,     maxAmmo:18,      dualable:false,pellets:1,splash:18,splashDmg:220},
+    {name:'RAIL GUN',     color:0x00ffff,dmg:380,cd:2.2, spd:420,spread:.0003,ammo:12,    maxAmmo:12,      dualable:false,pellets:1,splash:0},
   ];
   let wIdx=0,dualWield=false,lastFire=0,dualHand=0;
   let fpCharging=false,fpCharge=0,fpHand=1;
@@ -1578,6 +1623,30 @@
     g.userData.muzzle=new THREE.Vector3(0,.02,-.82);
     return g;
   }
+  function _buildRailgun(c){
+    const g=new THREE.Group();
+    // Long electromagnetic barrel housing
+    _part(g,new THREE.BoxGeometry(.1,.1,.92),_matSteel,0,0,-.12);
+    _part(g,new THREE.BoxGeometry(.08,.07,.90),_matDark,0,.08,-.12);
+    // 4 EM rails flanking the barrel
+    for(const[rx,ry] of[[.04,.04],[-.04,.04],[.04,-.04],[-.04,-.04]]){const rail=_part(g,new THREE.CylinderGeometry(.011,.011,.86,8),_matBrass,rx,ry,-.12);rail.rotation.x=Math.PI/2;}
+    // Scope housing
+    const scopeB=_part(g,new THREE.CylinderGeometry(.026,.026,.2,12),_matDark,.015,.1,-.14);scopeB.rotation.x=Math.PI/2;
+    _part(g,new THREE.CylinderGeometry(.03,.03,.06,12),_matMetal,.015,.1,-.04).rotation.x=Math.PI/2;
+    // Power cell / capacitor bank
+    _part(g,new THREE.BoxGeometry(.1,.09,.16),_matSteel,0,-.12,.08);
+    _part(g,new THREE.BoxGeometry(.08,.05,.12),_glow(c,2.4),0,-.12,.08);
+    // Charge rings along barrel (XY plane — perpendicular to Z barrel axis)
+    _part(g,new THREE.TorusGeometry(.048,.012,6,16),_glow(c,2.0),0,0,-.28);
+    _part(g,new THREE.TorusGeometry(.048,.012,6,16),_glow(c,2.0),0,0,-.10);
+    _part(g,new THREE.TorusGeometry(.048,.012,6,16),_glow(c,2.0),0,0,.08);
+    // Muzzle charge glow
+    _part(g,new THREE.SphereGeometry(.036,10,10),_glow(c,4.5),0,0,-.59);
+    // Accent stripe
+    _part(g,new THREE.BoxGeometry(.1,.008,.92),_accent(c),0,.052,-.12);
+    g.userData.muzzle=new THREE.Vector3(0,0,-.62);
+    return g;
+  }
   const gunModels={
     pistol:    _buildPistol(0x19f0ff),
     smg:       _buildSMG(0xffd166),
@@ -1587,6 +1656,7 @@
     plasma:    _buildPlasma(0x9b5cff),
     pulse:     _buildPulse(0xff7a18),
     bazooka:   _buildBazooka(0xff5a1e),
+    railgun:   _buildRailgun(0x00ffff),
     pistol2:   _buildPistol(0x19f0ff),
   };
   gunModels.shotgun2.position.set(-.44,0,0);
@@ -1605,7 +1675,7 @@
     const fpEl=document.getElementById('fpCharge');fpEl.style.display='none';
     const w=WEAPONS[wIdx];
     const keyMap={PISTOL:'pistol',SMG:'smg','DUAL SHOTGUNS':'shotgun',
-      'FORCE PUSH':'forcepush',PLASMA:'plasma','PULSE CANNON':'pulse',BAZOOKA:'bazooka'};
+      'FORCE PUSH':'forcepush',PLASMA:'plasma','PULSE CANNON':'pulse',BAZOOKA:'bazooka','RAIL GUN':'railgun'};
     const key=keyMap[w.name]||'pistol';
     Object.entries(gunModels).forEach(([k,m])=>m.visible=false);
     if(gunModels[key])gunModels[key].visible=true;
@@ -1666,7 +1736,18 @@
     // muzzle flash
     muzzleFlashMesh.material.opacity=.45;muzzleLight.intensity=1.4;
     setTimeout(()=>{muzzleFlashMesh.material.opacity=0;muzzleLight.intensity=0;},50);
-    sfx(({'PISTOL':'shot','SMG':'smg','DUAL SHOTGUNS':'blast','PLASMA':'plasma','PULSE CANNON':'smg','BAZOOKA':'blast'})[w.name]||'shot');
+    sfx(({'PISTOL':'shot','SMG':'smg','DUAL SHOTGUNS':'blast','PLASMA':'plasma','PULSE CANNON':'smg','BAZOOKA':'blast','RAIL GUN':'plasma'})[w.name]||'shot');
+    // Rail gun: instantaneous cyan beam tracer
+    if(w.name==='RAIL GUN'){
+      const rFrom=baseTip.clone();const rTo=rFrom.clone().addScaledVector(dir,380);
+      const rGeo=new THREE.BufferGeometry().setFromPoints([rFrom,rTo]);
+      const rMat=new THREE.LineBasicMaterial({color:0x00ffff,transparent:true,opacity:.95,blending:THREE.AdditiveBlending,depthWrite:false});
+      const rLine=new THREE.Line(rGeo,rMat);rLine.frustumCulled=false;scene.add(rLine);
+      const rMat2=new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.5,blending:THREE.AdditiveBlending,depthWrite:false});
+      const rLine2=new THREE.Line(new THREE.BufferGeometry().setFromPoints([rFrom,rTo]),rMat2);rLine2.frustumCulled=false;scene.add(rLine2);
+      let rLife=0;const fadeRail=()=>{rLife+=0.016;const o=Math.max(0,1-rLife*7);rMat.opacity=o*.95;rMat2.opacity=o*.5;if(rLife<0.18){requestAnimationFrame(fadeRail);}else{scene.remove(rLine);scene.remove(rLine2);rGeo.dispose();rLine2.geometry.dispose();}};
+      requestAnimationFrame(fadeRail);
+    }
     updateWeaponHud();
   }
   function releaseForcePush(){
@@ -2012,6 +2093,7 @@
     else if(e.code==='Digit5')selectWeapon(4);
     else if(e.code==='Digit6')selectWeapon(5);
     else if(e.code==='Digit7')selectWeapon(6);
+    else if(e.code==='Digit8')selectWeapon(7);
   });
   document.addEventListener('keyup',e=>keys[e.code]=false);
   addEventListener('wheel',e=>{if(!state.started)return;cycleWeapon(e.deltaY>0?1:-1);},{passive:true});
@@ -2188,8 +2270,8 @@
         const shake=fpCharging?(0.012+fpCharge*0.05):0;
         fpm.position.x=(Math.random()-.5)*shake;fpm.position.y=(Math.random()-.5)*shake;fpm.rotation.z=(Math.random()-.5)*shake*1.5;
       }
-      // scope zoom FOV
-      const targetFOV=zooming?32:baseFOV;
+      // scope zoom FOV — rail gun uses extreme zoom
+      const targetFOV=zooming?(WEAPONS[wIdx].name==='RAIL GUN'?6:32):baseFOV;
       if(Math.abs(camera.fov-targetFOV)>.05){camera.fov+=(targetFOV-camera.fov)*Math.min(1,dt*12);camera.updateProjectionMatrix();}
       scopeEl.style.opacity=zooming?'1':'0';
       // 2X damage boost timer
