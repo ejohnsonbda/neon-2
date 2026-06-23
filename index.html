@@ -290,8 +290,7 @@
     day:  { bg:0x9fc4e8, fog:0x9fc4e8, fogD:0.0029, sun:0xfff4e0, sunI:2.0, hemiSky:0xbcd6ff, hemiGnd:0x4a4636, hemiI:1.05, amb:0x9fb0cc, ambI:0.55, star:0.0, neon:0.0, moon:0.0 },
     dusk: { bg:0x2a1a3e, fog:0x3a2147, fogD:0.0040, sun:0xff7a3c, sunI:1.15, hemiSky:0x5a4a78, hemiGnd:0x1a1426, hemiI:0.7, amb:0x4a3a6a, ambI:0.5, star:0.95, neon:0.6, moon:0.85 }
   };
-  const timeState={ phase:'day', t:0, _warned:false }; // t: 0=day .. 1=dusk
-  const JAPAN_X=258; // entering Neo Tokyo / Japan district triggers dusk; leaving returns to day
+  const timeState={ phase:'day', t:0 }; // t: 0=day .. 1=dusk
   function lerpHex(a,b,t){const ar=(a>>16)&255,ag=(a>>8)&255,ab=a&255,br=(b>>16)&255,bg=(b>>8)&255,bb=b&255;return((ar+(br-ar)*t)|0)<<16|((ag+(bg-ag)*t)|0)<<8|((ab+(bb-ab)*t)|0);}
   function applyTimeOfDay(t){
     const d=SKY.day,k=SKY.dusk;
@@ -304,7 +303,6 @@
     const neonI=d.neon+(k.neon-d.neon)*t;nfl1.intensity=neonI;nfl2.intensity=neonI;
     const starO=d.star+(k.star-d.star)*t;if(scene.userData.stars)scene.userData.stars.material.opacity=starO;
     const moonI=d.moon+(k.moon-d.moon)*t;if(scene.userData.moon)scene.userData.moon.material.emissiveIntensity=.15+moonI*.6;if(scene.userData.moonLight)scene.userData.moonLight.intensity=moonI;
-    if(scene.userData.btSkyLights){const q=Math.max(0,(t-.22)/.78);for(const s of scene.userData.btSkyLights){s.beamMat.opacity=q*.32;s.light.intensity=q*4.5;}}
   }
   function updateTimeOfDay(dt){
     // Always daytime — nightfall removed globally
@@ -326,19 +324,6 @@
     function cloud(x,y,z,s){const g=new THREE.Group();g.position.set(x,y,z);for(let i=0;i<6;i++){const p=new THREE.Mesh(new THREE.SphereGeometry(rand(5,9),12,12),cmat);p.position.set(rand(-10,10),rand(-2,2),rand(-4,4));p.scale.set(rand(.9,1.4),rand(.5,1),rand(.9,1.4));g.add(p);}g.scale.setScalar(s);scene.add(g);clouds.push(g);}
     cloud(-70,64,-80,1.3);cloud(120,78,40,1.6);cloud(320,72,-30,1.9);cloud(520,88,25,2.1);cloud(640,74,-55,1.5);
     scene.userData.clouds=clouds;scene.userData.cloudMat=cmat;
-  })();
-  // BLACKTHORN searchlight beams — fade in at nightfall
-  (()=>{
-    const bsl=[];
-    for(const[sx,sz] of[[12,95],[12,148],[-10,186],[-32,116]]){
-      const bm=new THREE.MeshBasicMaterial({color:0x2244bb,transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending});
-      const beam=new THREE.Mesh(new THREE.CylinderGeometry(1,5,160,8,1,true),bm);
-      beam.position.set(sx,82,sz);scene.add(beam);
-      const sl=new THREE.SpotLight(0x3355cc,0,260,Math.PI/12,.85,1.5);
-      sl.position.set(sx,6,sz);const tgt=new THREE.Object3D();tgt.position.set(sx,0,sz);scene.add(tgt);sl.target=tgt;scene.add(sl);
-      bsl.push({beamMat:bm,light:sl});
-    }
-    scene.userData.btSkyLights=bsl;
   })();
   applyTimeOfDay(0); // start in full daylight
 
@@ -611,7 +596,7 @@
     // ── VINE-COVERED EAST PASSAGE ──
     {const VX=FX+72,VZ0=FZ-28,VZ1=FZ+28;
     for(let vz=VZ0;vz<=VZ1;vz+=5.5){world.add(box(8,.3,5.5,stoneM,VX,.15,vz));addWalk(VX,vz,7.5,5,.3);world.add(box(8,.35,5.5,mossM,VX,5.2,vz));}
-    for(const s of[-1,1])world.add(wallB(.55,5,VZ1-VZ0+5.5,stoneM,VX+s*3.8,2.5,(VZ0+VZ1)/2,mossM));
+    for(const s of[-1,1])world.add(wallB(.55,5,VZ1-VZ0+5.5,VX+s*3.8,2.5,(VZ0+VZ1)/2,stoneM));
     for(let i=0;i<18;i++)world.add(box(.1,rand(1.5,3.5),.1,vineM,VX+rand(-3.5,3.5),rand(3.5,5),VZ0+rand(0,VZ1-VZ0)));
     world.add(box(.5,.55,.5,wTorch,VX-3.6,4.5,VZ0+8));world.add(box(.5,.55,.5,wTorch,VX+3.6,4.5,(VZ0+VZ1)/2));world.add(box(.5,.55,.5,wTorch,VX-3.6,4.5,VZ1-8));}
 
@@ -1152,14 +1137,14 @@
     function snowman(px,pz){
       [1.1,.75,.52].forEach((r,i)=>{const s=new THREE.Mesh(new THREE.SphereGeometry(r,10,8),snowM);s.position.set(px,r+[0,2.1,3.6][i],pz);world.add(s);});
       const eyeM2=new THREE.MeshStandardMaterial({color:0x111111,roughness:.8});
-      world.add(new THREE.Mesh(new THREE.SphereGeometry(.1,6,6),eyeM2)).position.set(px-.22,4.3,pz-.47);
-      world.add(new THREE.Mesh(new THREE.SphereGeometry(.1,6,6),eyeM2)).position.set(px+.22,4.3,pz-.47);
-      world.add(new THREE.Mesh(new THREE.ConeGeometry(.1,.45,6),new THREE.MeshStandardMaterial({color:0xff7700}))).position.set(px,3.96,pz-.54);
+      const eyeL=new THREE.Mesh(new THREE.SphereGeometry(.1,6,6),eyeM2);eyeL.position.set(px-.22,4.3,pz-.47);world.add(eyeL);
+      const eyeR=new THREE.Mesh(new THREE.SphereGeometry(.1,6,6),eyeM2);eyeR.position.set(px+.22,4.3,pz-.47);world.add(eyeR);
+      const nose=new THREE.Mesh(new THREE.ConeGeometry(.1,.45,6),new THREE.MeshStandardMaterial({color:0xff7700}));nose.position.set(px,3.96,pz-.54);world.add(nose);
     }
     // Log cabin
     function cabin(px,pz,w,d,h){
-      world.add(box(w,h,d,cabM,px,h/2,pz));addColl(box(w,h,d,cabM,px,h/2,pz));addWalk(px,pz,w-1,d-1,h+.1);
-      world.add(new THREE.Mesh(new THREE.ConeGeometry(w*.65,h*.55,4),snowD)).position.set(px,h+h*.275,pz);
+      const cabBody=box(w,h,d,cabM,px,h/2,pz);world.add(cabBody);addColl(cabBody);addWalk(px,pz,w-1,d-1,h+.1);
+      const cabRoof=new THREE.Mesh(new THREE.ConeGeometry(w*.65,h*.55,4),snowD);cabRoof.position.set(px,h+h*.275,pz);world.add(cabRoof);
       world.add(box(.3,h+.5,.3,barkM2,px-w*.4,h*.25,pz+d*.4));world.add(box(.3,h+.5,.3,barkM2,px+w*.4,h*.25,pz+d*.4));
       const door=box(1.4,2.6,.12,new THREE.MeshStandardMaterial({color:0x3a2010,roughness:.9}),px,1.3,pz-d/2-.07);world.add(door);
       addLabel('Tundra Lodge',px,h+3,pz);
