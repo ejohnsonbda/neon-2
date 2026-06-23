@@ -360,7 +360,7 @@
   makeIsland(isl4,iceGround);
 
   // isl5: PYRAMID ISLAND — massive desert island south of the graveyard (isl3), always daytime
-  const isl5=[[-93,208],[2,208],[121,208],[240,208],[264,220],[374,238],[429,270],[415,344],[373,400],[299,438],[191,452],[83,444],[-1,416],[-57,374],[-85,309],[-89,236]];
+  const isl5=[[-93,234],[2,234],[121,234],[240,234],[264,246],[374,262],[429,272],[415,344],[373,400],[299,438],[191,452],[83,444],[-1,416],[-57,374],[-85,309],[-89,260]];
   const desertGround=new THREE.MeshStandardMaterial({color:0xb8935a,roughness:.96,metalness:.01});
   makeIsland(isl5,desertGround);
   // isl6: JUNGLE FORTRESS — expanded ancient prison island
@@ -420,7 +420,7 @@
     const pathMat=new THREE.MeshStandardMaterial({color:0xd4aa62,roughness:.92});
     const pathEdge=neon(0xffaa00,0.7);
     // South corridor from bridge entrance down to main junction
-    world.add(box(16,.12,80,pathMat,5,0.1,245));addWalk(5,245,16,80,.14);
+    world.add(box(16,.12,54,pathMat,5,0.1,260));addWalk(5,260,16,54,.14);
     // E-W main boulevard from bridge corridor to pyramid (z=275)
     world.add(box(190,.12,16,pathMat,95,0.1,277));addWalk(95,277,190,16,.14);
     // Pyramid approach north road (x=175, junction z=277 → pyramid z=305)
@@ -439,12 +439,12 @@
     // === BRIDGE from isl3 (graveyard, z=192) to isl5 (z=206) ===
     const bMat=new THREE.MeshStandardMaterial({color:0xb89858,roughness:.9});
     // main deck
-    const bdeck=box(9,.55,16,bMat,5,0.7,199);bdeck.receiveShadow=true;world.add(bdeck);addWalk(5,199,9,16,1.0);
+    const bdeck=box(9,.55,32,bMat,5,0.7,217);bdeck.receiveShadow=true;world.add(bdeck);addWalk(5,217,9,32,1.0);
     // railings
-    for(const s of[-1,1]){world.add(box(.35,1.2,16,neon(0xffaa00,1.8),5+s*4.65,1.6,199));}
+    for(const s of[-1,1]){world.add(box(.35,1.2,32,neon(0xffaa00,1.8),5+s*4.65,1.6,217));}
     // support pillars
-    for(const bpz of[194,199,204]){world.add(box(1,2.4,1,bMat,-3.5,1.2,bpz));world.add(box(1,2.4,1,bMat,3.5,1.2,bpz));}
-    addLabel('Bridge to Pyramid Island',5,6,199);
+    for(const bpz of[205,217,229]){world.add(box(1,2.4,1,bMat,-3.5,1.2,bpz));world.add(box(1,2.4,1,bMat,3.5,1.2,bpz));}
+    addLabel('Bridge to Pyramid Island',5,6,217);
   })();
 
   /* ===== JUNGLE FORTRESS PRISON (isl6) — ancient prison overgrown by jungle ===== */
@@ -631,9 +631,9 @@
   function mkPath(pts,w=1.6,mat=M.path){for(let i=0;i<pts.length-1;i++){const a=new THREE.Vector3(pts[i][0],.08,pts[i][1]),b=new THREE.Vector3(pts[i+1][0],.08,pts[i+1][1]);const mid=a.clone().add(b).multiplyScalar(.5);const len=a.distanceTo(b);const p=box(w,.08,len,mat,mid.x,.09,mid.z);p.rotation.y=Math.atan2(b.x-a.x,b.z-a.z);p.receiveShadow=true;p.castShadow=false;world.add(p);}}
   mkPath([[-62,-26],[-48,-16],[-31,-11],[-10,-4],[12,-3],[38,-7],[60,-17]],2.2);
   mkPath([[-19,-41],[-8,-12],[-3,28]],1.55);
-  mkPath([[60,-17],[78,-13],[96,-10],[114,-8]],2.35);
+  mkPath([[60,-17],[74,-14]],2.35);mkPath([[86,-10],[114,-8]],2.35);
   mkPath([[114,-8],[151,-8],[192,-10]],2.25);
-  mkPath([[218,-4],[266,-2],[300,-1],[356,0],[392,0],[430,0]],2.8,M.asphalt);
+  mkPath([[246,-2],[300,-1],[356,0],[392,0],[430,0]],2.8,M.asphalt);
 
   function gabledRoof(w,d,h,mat=M.roof){const geo=new THREE.BufferGeometry();const v=new Float32Array([-w/2,0,-d/2,w/2,0,-d/2,0,h,-d/2,-w/2,0,d/2,w/2,0,d/2,0,h,d/2]);const idx=[0,1,2,3,5,4,0,3,4,0,4,1,1,4,5,1,5,2,2,5,3,2,3,0];geo.setAttribute('position',new THREE.BufferAttribute(v,3));geo.setIndex(idx);geo.computeVertexNormals();const m=new THREE.Mesh(geo,mat);m.castShadow=true;m.receiveShadow=true;return m;}
 
@@ -1347,6 +1347,16 @@
 
   (()=>{const g=new THREE.Group();world.add(g);const s=new THREE.Vector3(70,0,-12),e=new THREE.Vector3(112,0,-9);const dir=new THREE.Vector3().subVectors(e,s);const len=dir.length();const ang=Math.atan2(dir.x,dir.z);const mid=s.clone().add(e).multiplyScalar(.5);const dk=box(6.2,.42,len,M.wood,mid.x,.9,mid.z);dk.rotation.y=ang;g.add(dk);addWalk(mid.x,mid.z,8,len,1.11);for(const side of[-1,1]){const r=box(.24,1,len,neon(0x19f5ff,1.1),mid.x+Math.cos(ang)*side*2.85,1.4,mid.z-Math.sin(ang)*side*2.85);r.rotation.y=ang;g.add(r);}addLabel('Grand Bridge',91,4.8,-10);markers.push({name:'Grand Bridge',x:91,z:-10});})();
   (()=>{const cy2=neon(0x19f5ff,2.2);const g=new THREE.Group();world.add(g);const s=new THREE.Vector3(222,0,-4),e=new THREE.Vector3(267,0,-2);const dir=new THREE.Vector3().subVectors(e,s);const len=dir.length();const ang=Math.atan2(dir.x,dir.z);const mid=s.clone().add(e).multiplyScalar(.5);const dk=box(8.2,.5,len,new THREE.MeshStandardMaterial({color:0x10141d,roughness:.82}),mid.x,1.05,mid.z);dk.rotation.y=ang;g.add(dk);addWalk(mid.x,mid.z,9,len,1.3);for(const side of[-1,1]){const r=box(.22,1.05,len,cy2,mid.x+Math.cos(ang)*side*3.9,1.65,mid.z-Math.sin(ang)*side*3.9);r.rotation.y=ang;g.add(r);}[232,258].forEach((x,i)=>{g.add(box(1.3,12,1.3,M.metal,x,6.5,-3+i*.5));g.add(box(7,.55,1.1,cy2,x,12.6,-3+i*.5));});addLabel('Neon Bridge',244,7.2,-3);markers.push({name:'Neon Bridge',x:244,z:-3});})();
+  // ── FROST CANAL BRIDGE: Japan (isl2) → Tundra (isl4) ──
+  (()=>{
+    const iceBM=new THREE.MeshStandardMaterial({color:0x4a9abf,roughness:.38,metalness:.22,emissive:0x0a2a40,emissiveIntensity:.18});
+    const bx=290,bz0=-106,bz1=-132,blen=Math.abs(bz1-bz0),bmz=(bz0+bz1)/2;
+    const deck=box(9,.5,blen,iceBM,bx,1.0,bmz);deck.receiveShadow=true;world.add(deck);addWalk(bx,bmz,9,blen,1.25);
+    for(const s of[-1,1]){world.add(box(.4,1.3,blen,neon(0x19f5ff,.85),bx+s*4.2,1.8,bmz));}
+    for(let pz=bz0-2;pz>bz1+2;pz-=5){world.add(box(.9,1.8,.9,iceBM,bx-4,0.2,pz));world.add(box(.9,1.8,.9,iceBM,bx+4,0.2,pz));}
+    for(const s of[-1,1])for(const az of[bz0,bz1]){world.add(box(1,3.5,1,iceBM,bx+s*4,1.8,az));world.add(box(.12,5,.12,neon(0x19f5ff,1.4),bx+s*4,4,az));}
+    addLabel('Frost Canal Bridge',bx,5,bmz);markers.push({name:'Frost Canal Bridge',x:bx,z:bmz});
+  })();
 
   (()=>{
     mkBldg({name:'Market Hall',x:149,z:10,w:32,d:18,h:5.4,rot:.02,type:'guest'});
@@ -2099,7 +2109,7 @@
   function buildWave(n){
     const q=[];const budget=6+n*3;
     // Milestone boss waves at 20 / 40 / 60 / 80 / 100… (super apex spider at 40 & 80; boss otherwise)
-    if(n%20===0){q.push((n%40===0)?'spider':'boss');}
+    if(n%5===0){q.push(n%10===0?'spider':'boss');}
     let pts=budget;const pool=['grunt','grunt','runner','sapling','bramble','shooter','tank','dragon','treant','twohead','frosty'];
     while(pts>0){const t=pick(n<3?['grunt','runner','sapling','bramble']:pool);q.push(t);pts-= (t==='tank'||t==='treant'||t==='dragon')?3:1;}
     // a few neutral wanderers for atmosphere
@@ -2354,6 +2364,11 @@
     } else {
       setTimeout(startWave,800);
     }
+    // Apex golems guarding each island — placed at game start
+    setTimeout(()=>{
+      const apexPosts=[[370,-20],[50,155],[175,310],[290,-190],[315,152],[-40,20],[180,-40]];
+      for(const[ax,az] of apexPosts){const ag=makeGolem(ax,az,'boss');if(ag)ag.userData.hostile=true;}
+    },1800);
     // activate mode chosen on home screen
     if(window._gameMode==='star')setTimeout(()=>setMode('starSearch'),400);
     else if(window._gameMode==='ufo')setTimeout(()=>setMode('ufoAttack'),400);
@@ -2544,8 +2559,7 @@
   function clearUfoAttack(){for(const u of assaultUFOs){scene.remove(u.mesh);}assaultUFOs.length=0;for(const p of ufoEProjs){scene.remove(p.mesh);}ufoEProjs.length=0;}
 
   function spawnUfoWave(){
-    ufoWave++;const count=3+ufoWave*2;ufoRemaining=count;
-    const spawnRing=[[0,1.5,0],[160,1.5,-30],[330,1.5,0],[10,1.5,150],[162,1.5,-168],[170,1.5,310],[315,1.5,155]];
+    ufoWave++;const spawnRing=[[0,1.5,0],[160,1.5,-30],[330,1.5,0],[10,1.5,150],[162,1.5,-168],[170,1.5,310],[315,1.5,155]];const count=Math.max(spawnRing.length*2,3+ufoWave*3);ufoRemaining=count;
     for(let i=0;i<count;i++){
       const base=spawnRing[i%spawnRing.length];
       const ug=new THREE.Group();ug.position.set(base[0]+rand(-30,30),rand(22,45),base[2]+rand(-30,30));scene.add(ug);
