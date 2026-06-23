@@ -81,11 +81,8 @@
     #audioBtn{position:fixed;left:18px;bottom:120px;z-index:7;cursor:pointer;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-size:18px;background:rgba(6,12,24,.6);border:1px solid rgba(25,245,255,.3);color:var(--cyan);backdrop-filter:blur(8px);}
     #loading{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:#04060f;color:var(--cyan);font-family:'Orbitron';letter-spacing:4px;}
     #modeHud{position:fixed;top:18px;left:50%;transform:translateX(-50%);background:rgba(4,8,18,.82);border:1px solid #ffe45c;border-radius:12px;padding:8px 22px;color:#ffe45c;font-family:Orbitron,Arial,sans-serif;font-size:15px;letter-spacing:2px;display:none;text-align:center;z-index:50;}
-    #modePicker{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(4,8,24,.96);border:2px solid #19f5ff;border-radius:18px;padding:32px 48px;color:#fff;font-family:Orbitron,Arial,sans-serif;display:none;z-index:200;text-align:center;min-width:340px;}
-    #modePicker h2{color:#19f5ff;margin:0 0 22px;font-size:18px;letter-spacing:4px;}
-    .modeBtn{display:block;width:100%;margin:10px 0;padding:12px 0;background:rgba(25,245,255,.12);border:1px solid #19f5ff;border-radius:8px;color:#fff;font-family:Orbitron,Arial,sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;}
-    .modeBtn:hover{background:rgba(25,245,255,.28);}
-    #modeClose{margin-top:14px;color:#888;font-size:11px;cursor:pointer;letter-spacing:2px;}
+    .modeSelBtn{font-family:Orbitron,Arial,sans-serif;font-size:11px;letter-spacing:2px;padding:8px 16px;border:1px solid #444;border-radius:8px;background:transparent;color:#888;cursor:pointer;transition:all .18s;}
+    .modeSelBtn.active{background:rgba(25,245,255,.18);border-color:#19f5ff;color:#fff;}
   </style>
 </head>
 <body>
@@ -139,7 +136,15 @@
       <div><b>Right click</b> — ⚡ lightning (1-hit kill)</div><div><b>Wave 5 / 10…</b> — boss spawns</div>
       <div><b>❤️ life · 🛡️ armor · ✖️2X</b> — pickups</div><div><b>Force Push</b> — open hand to blast</div>
     </div>
-    <div style="display:flex;gap:12px;justify-content:center;align-items:center;margin-top:14px;flex-wrap:wrap;">
+    <div style="margin:14px 0 6px;text-align:center;">
+      <div style="font-family:Orbitron,Arial;font-size:10px;letter-spacing:3px;color:#555;margin-bottom:8px;">SELECT MODE</div>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+        <button class="modeSelBtn active" id="msFree" onclick="selectMode('free',this)">◇ FREE PLAY</button>
+        <button class="modeSelBtn" id="msStar" onclick="selectMode('star',this)">⭐ STAR SEARCH</button>
+        <button class="modeSelBtn" id="msUfo" onclick="selectMode('ufo',this)">🛸 UFO ASSAULT</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;justify-content:center;align-items:center;margin-top:10px;flex-wrap:wrap;">
       <button id="startBtn">ENTER NEON CITY</button>
       <button id="endlessBtn" onclick="window._endless=true;document.getElementById('startBtn').click()" style="background:linear-gradient(90deg,var(--mag),#ff6ab8);box-shadow:0 10px 34px rgba(255,45,149,.4);">♾ ENDLESS MODE</button>
     </div>
@@ -160,13 +165,6 @@
 </div>
 
 <div id="modeHud"></div>
-<div id="modePicker">
-  <h2>⬡ GAME MODES</h2>
-  <button class="modeBtn" id="btnStarSearch">⭐ STAR SEARCH — Collect all stars</button>
-  <button class="modeBtn" id="btnUfoAttack">🛸 UFO ASSAULT — Survive the invasion</button>
-  <button class="modeBtn" id="btnFreePlay">◇ FREE PLAY — Normal mode</button>
-  <div id="modeClose">[ TAB ] CLOSE</div>
-</div>
 
 <audio id="bgm" loop preload="auto" src="project/uploads/Final_Arena_Run.mp3"></audio>
 <audio id="sfx_shot" preload="auto" src="project/uploads/pistol_uzi.mp3"></audio>
@@ -467,7 +465,7 @@
       const h=12+rand(0,7);
       const trk=cyl(.35,.55,h,8,barkM,px,h/2,pz);trk.rotation.z=rand(-.14,.14);trk.rotation.x=rand(-.08,.08);world.add(trk);
       const frondM2=new THREE.MeshStandardMaterial({color:0x1e5c0a,roughness:.88,side:THREE.DoubleSide});
-      for(let i=0;i<7;i++){const a=i/7*Math.PI*2;const fr=new THREE.Mesh(new THREE.PlaneGeometry(7+rand(0,3),1.1),frondM2);fr.position.set(px+Math.cos(a)*3.5,h+.4,pz+Math.sin(a)*3.5);fr.rotation.y=-a;fr.rotation.z=-.35;world.add(fr);}
+      for(let i=0;i<5;i++){const a=i/5*Math.PI*2;const fr=new THREE.Mesh(new THREE.PlaneGeometry(6+rand(0,2),1.0),frondM2);fr.position.set(px+Math.cos(a)*3,h+.4,pz+Math.sin(a)*3);fr.rotation.y=-a;fr.rotation.z=-.35;world.add(fr);}
       const cocM=new THREE.MeshStandardMaterial({color:0x3c2808,roughness:.9});
       for(let i=0;i<3;i++){const a=i/3*Math.PI*2;const c=new THREE.Mesh(new THREE.SphereGeometry(.35,6,6),cocM);c.position.set(px+Math.cos(a)*.7,h-.4,pz+Math.sin(a)*.7);world.add(c);}
     }
@@ -602,9 +600,9 @@
 
     // ── TALL JUNGLE GRASS (expanded coverage) ──
     {const grasM=new THREE.MeshStandardMaterial({color:0x2e6b12,roughness:.88,side:THREE.DoubleSide,transparent:true,opacity:.94});
-    function grassTuft(gx,gz){const gh=rand(1.6,3.8);for(let gi=0;gi<3;gi++){const ga=gi/3*Math.PI;const gp=new THREE.Mesh(new THREE.PlaneGeometry(.9+rand(0,.5),gh),grasM);gp.position.set(gx+rand(-.5,.5),gh/2,gz+rand(-.5,.5));gp.rotation.y=ga;world.add(gp);}}
-    for(let i=0;i<140;i++){const a=rand(0,Math.PI*2);const r=rand(8,120);grassTuft(FX+Math.cos(a)*r,FZ+Math.sin(a)*r);}
-    for(const[px,pz] of[[250,108],[272,100],[298,95],[325,92],[358,96],[390,112],[410,136],[414,162],[400,190],[376,214],[342,220],[306,220],[270,210],[244,194],[220,172],[208,146],[218,120],[236,110],[218,72],[262,58],[308,54],[362,58],[414,80],[452,112],[462,155],[448,196],[418,226],[368,250],[308,256],[252,246],[210,225],[180,196],[167,160],[172,118]])for(let g=0;g<6;g++)grassTuft(px+rand(-9,9),pz+rand(-9,9));}
+    function grassTuft(gx,gz){const gh=rand(1.6,3.8);for(let gi=0;gi<2;gi++){const ga=gi/2*Math.PI;const gp=new THREE.Mesh(new THREE.PlaneGeometry(.9+rand(0,.5),gh),grasM);gp.position.set(gx+rand(-.5,.5),gh/2,gz+rand(-.5,.5));gp.rotation.y=ga;world.add(gp);}}
+    for(let i=0;i<40;i++){const a=rand(0,Math.PI*2);const r=rand(8,120);grassTuft(FX+Math.cos(a)*r,FZ+Math.sin(a)*r);}
+    for(const[px,pz] of[[250,108],[272,100],[298,95],[325,92],[358,96],[390,112],[410,136],[414,162],[400,190],[376,214],[342,220],[306,220],[270,210],[244,194],[220,172],[208,146],[218,120],[236,110],[218,72],[262,58],[308,54],[362,58],[414,80],[452,112],[462,155],[448,196],[418,226],[368,250],[308,256],[252,246],[210,225],[180,196],[167,160],[172,118]])for(let g=0;g<2;g++)grassTuft(px+rand(-9,9),pz+rand(-9,9));}
 
     addLabel('Jungle Fortress',FX,18,FZ-OD+5);markers.push({name:'Jungle Fortress',x:FX,z:FZ});
 
@@ -626,7 +624,7 @@
   const sgr=box(sgW+40,2.4,sgD+40,M.asphalt,sgCX,-0.2,sgCZ);sgr.castShadow=false;sgr.receiveShadow=true;world.add(sgr);
   addWalk(sgCX,sgCZ,sgW+40,sgD+40,1.0);
 
-  const water=new THREE.Mesh((()=>{const g=new THREE.PlaneGeometry(1600,900,96,64);g.rotateX(-Math.PI/2);return g;})(),M.water);
+  const water=new THREE.Mesh((()=>{const g=new THREE.PlaneGeometry(1600,900,24,16);g.rotateX(-Math.PI/2);return g;})(),M.water);
   water.position.y=-0.42;water.receiveShadow=true;scene.add(water);
 
   /* ============================= PATHS ============================= */
@@ -1154,9 +1152,8 @@
     // Ice crystals on pond edge
     for(let i=0;i<14;i++){const a=i/14*Math.PI*2;const cr=new THREE.Mesh(new THREE.ConeGeometry(rand(.4,1.2),rand(2,6),6),iceS);cr.position.set(cx-20+Math.cos(a)*23,.3+rand(.5,2),cz+30+Math.sin(a)*23);cr.rotation.set(rand(-.2,.2),rand(0,6),rand(-.22,.22));world.add(cr);}
     // Glow light over pond
-    const pl2=new THREE.PointLight(0x88ccff,1.8,60,2);pl2.position.set(cx-20,8,cz+30);world.add(pl2);
-    // 40 pine trees scattered around island
-    for(let i=0;i<40;i++){const a=rand(0,Math.PI*2),r=rand(18,88);pine(cx+Math.cos(a)*r,cz+Math.sin(a)*r);}
+    // 15 pine trees scattered around island
+    for(let i=0;i<15;i++){const a=rand(0,Math.PI*2),r=rand(18,88);pine(cx+Math.cos(a)*r,cz+Math.sin(a)*r);}
     // Snow drifts
     for(let i=0;i<22;i++){const a=rand(0,Math.PI*2),r=rand(10,80);drift(cx+Math.cos(a)*r,cz+Math.sin(a)*r,rand(2.5,6));}
     // 3 snowmen near center
@@ -1165,8 +1162,6 @@
     cabin(cx-45,cz-55,18,12,6);cabin(cx+38,cz+48,14,10,5);
     // Scattered ice crystals
     for(let i=0;i<30;i++){const a=rand(0,Math.PI*2),r=rand(15,75);const cr=new THREE.Mesh(new THREE.ConeGeometry(rand(.4,1.5),rand(2,8),6),iceS);cr.position.set(cx+Math.cos(a)*r,.3+rand(.5,3),cz+Math.sin(a)*r);cr.rotation.set(rand(-.2,.2),rand(0,6),rand(-.2,.2));world.add(cr);}
-    // Neon aurora strips high above (decorative)
-    for(const[col,h2] of[[0x44ffaa,90],[0x88eeff,110],[0xaa44ff,130]]){const s=new THREE.Mesh(new THREE.PlaneGeometry(180,8),neon(col,.35));s.position.set(cx,h2,cz);s.rotation.x=-Math.PI/2;world.add(s);}
     addLabel('Frozen Tundra',cx,12,cz-80);markers.push({name:'Frozen Tundra',x:cx,z:cz});
     // ── ICE BRIDGE: Harbor (isl1) → Tundra (isl4) ──
     const bx=170,bz0=-66,bz1=-118,blen=bz1-bz0,bmz=(bz0+bz1)/2;
@@ -2359,6 +2354,9 @@
     } else {
       setTimeout(startWave,800);
     }
+    // activate mode chosen on home screen
+    if(window._gameMode==='star')setTimeout(()=>setMode('starSearch'),400);
+    else if(window._gameMode==='ufo')setTimeout(()=>setMode('ufoAttack'),400);
   }
   function gameOver(){
     state.over=true;
@@ -2469,15 +2467,11 @@
 
   /* ===== GAME MODES ===== */
   const modeHud=document.getElementById('modeHud');
-  const modePicker=document.getElementById('modePicker');
   let activeMode=null; // 'starSearch' | 'ufoAttack' | null
 
-  // ── TAB key toggles mode picker ──
-  window.addEventListener('keydown',e=>{if(e.code==='Tab'){e.preventDefault();modePicker.style.display=modePicker.style.display==='block'?'none':'block';}});
-  document.getElementById('btnFreePlay').onclick=()=>{setMode(null);modePicker.style.display='none';};
-  document.getElementById('btnStarSearch').onclick=()=>{setMode('starSearch');modePicker.style.display='none';};
-  document.getElementById('btnUfoAttack').onclick=()=>{setMode('ufoAttack');modePicker.style.display='none';};
-  document.getElementById('modeClose').onclick=()=>{modePicker.style.display='none';};
+  // mode chosen on home screen before starting
+  window._gameMode='free';
+  window.selectMode=function(m,btn){window._gameMode=m;document.querySelectorAll('.modeSelBtn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');};
 
   function setMode(m){
     activeMode=m;
@@ -2513,7 +2507,6 @@
       const g=new THREE.Group();scene.add(g);
       const s=new THREE.Mesh(new THREE.OctahedronGeometry(1.1,0),starMatG);
       g.add(s);
-      const pl3=new THREE.PointLight(0xffe45c,2.8,18,2);pl3.position.y=0;g.add(pl3);
       g.position.set(sx,sy,sz);
       starMeshes.push({group:g,sphere:s,active:true,pos:new THREE.Vector3(sx,sy,sz)});
     }
@@ -2559,7 +2552,6 @@
       const disk=new THREE.Mesh(new THREE.CylinderGeometry(7,4.5,.9,16),ufoAssaultMat);ug.add(disk);
       const dome=new THREE.Mesh(new THREE.SphereGeometry(3.5,12,8,0,Math.PI*2,0,Math.PI/2),ufoAssaultMat);dome.position.y=.45;ug.add(dome);
       const eye=new THREE.Mesh(new THREE.SphereGeometry(.9,8,8),ufoAssaultEye);eye.position.y=.1;ug.add(eye);
-      const ul=new THREE.PointLight(0x00ffcc,3,28,2);ul.position.y=-1;ug.add(ul);
       assaultUFOs.push({mesh:ug,hp:80+ufoWave*20,alive:true,shootCD:rand(1,3),orbitAngle:rand(0,6),orbitR:rand(18,42),baseX:base[0],baseZ:base[2]});
     }
     updateUfoHud();
