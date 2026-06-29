@@ -488,7 +488,8 @@
 
     // ── OUTER FORTRESS WALLS ──
     const OW=46,OD=52;
-    world.add(wallB(OW*2,9,3.5,FX,4.5,FZ-OD,stoneM));  // north wall
+    // North wall — 8u gate so players from northern bridges can enter
+    {const gw=8,pw=(OW*2-gw)/2;world.add(wallB(pw,9,3.5,FX-(gw/2+pw/2),4.5,FZ-OD,stoneM));world.add(wallB(pw,9,3.5,FX+(gw/2+pw/2),4.5,FZ-OD,stoneM));world.add(wallB(OW*2,4,3.5,FX,11,FZ-OD,stoneM));world.add(box(gw,.55,3.5,stoneM,FX,0.35,FZ-OD));}
     // South wall gate gap (6u)
     {const gw=6,pw=(OW*2-gw)/2;world.add(wallB(pw,9,3.5,FX-(gw/2+pw/2),4.5,FZ+OD,stoneM));world.add(wallB(pw,9,3.5,FX+(gw/2+pw/2),4.5,FZ+OD,stoneM));world.add(wallB(OW*2,4,3.5,FX,11,FZ+OD,stoneM));}
     // West wall — tunnel gap at FZ (3u wide)
@@ -1989,7 +1990,7 @@
     const dmg=80+200*fpCharge;const range=8+25*fpCharge;const cp=camera.position.clone();
     const fwd=new THREE.Vector3();camera.getWorldDirection(fwd);
     for(const g of golems){if(!g.userData.alive)continue;const toG=new THREE.Vector3().subVectors(g.position.clone().setY(cp.y),cp);const dist=toG.length();if(dist>range+5)continue;const dot=toG.clone().normalize().dot(fwd);if(dot>-.05||dist<5){damageGolem(g,dmg);g.position.addScaledVector(toG.clone().normalize(),dist<5?20:14);}}
-    const fl=document.getElementById('fpFlash');fl.style.transition='none';fl.style.opacity=Math.min(1,.4+fpCharge);requestAnimationFrame(()=>{fl.style.transition='opacity .5s ease';fl.style.opacity='0';});
+    const fl=document.getElementById('fpFlash');fl.style.background='radial-gradient(circle at center,rgba(25,245,255,.4),transparent 65%)';fl.style.transition='none';fl.style.opacity=Math.min(1,.4+fpCharge);requestAnimationFrame(()=>{fl.style.transition='opacity .5s ease';fl.style.opacity='0';});
     recoil=.2;sfx(fpCharge>=0.99?'push_full':'push');fpCharge=0;document.getElementById('fpFill').style.width='0%';
   }
   function muzzleFlash(){}
@@ -2011,7 +2012,7 @@
     // one-hit kill in a radius around the strike (enemies & boss)
     const R=7.5;for(const g of golems){if(!g.userData.alive)continue;if(g.position.distanceTo(target)<R)damageGolem(g,1e9);}
     // purple/red screen flash
-    const fl=document.getElementById('fpFlash');fl.style.background='radial-gradient(circle at center,rgba(155,92,255,.55),rgba(255,43,94,.3) 55%,transparent 80%)';fl.style.transition='none';fl.style.opacity='1';requestAnimationFrame(()=>{fl.style.transition='opacity .55s ease';fl.style.opacity='0';});
+    const fl=document.getElementById('fpFlash');fl.style.background='radial-gradient(circle at center,rgba(155,92,255,.55),rgba(255,43,94,.3) 55%,transparent 80%)';fl.style.transition='none';fl.style.opacity='1';requestAnimationFrame(()=>{fl.style.transition='opacity .55s ease';fl.style.opacity='0';});setTimeout(()=>{fl.style.background='radial-gradient(circle at center,rgba(25,245,255,.4),transparent 65%)';},700);
     recoil=.22;sfx('thunder');
   }
   function spawnLightning(target){
@@ -2343,7 +2344,7 @@
   });
   renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
   addEventListener('mouseup',e=>{if(e.button===0){firing=false;if(fpCharging){fpCharging=false;releaseForcePush();}}if(e.button===2){zooming=false;}});
-  document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===renderer.domElement;});
+  document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===renderer.domElement;if(locked&&state.started&&!muted){if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume().catch(()=>{});bgm.play().catch(()=>{});}});
   document.addEventListener('mousemove',e=>{if(!locked)return;const sens=zooming?.0010:.0022;yaw-=e.movementX*sens;pitch-=e.movementY*sens;pitch=Math.max(-1.4,Math.min(1.3,pitch));});
 
   function startGame(){
