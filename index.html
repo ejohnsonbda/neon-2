@@ -100,7 +100,7 @@
   <div class="keys">
     <kbd>WASD</kbd> move · <kbd>Shift</kbd> run · <kbd>Space</kbd> jump · <kbd>Space·Space</kbd> fly<br>
     <kbd>LMB</kbd> auto-fire / charge Force Push · <kbd>RMB</kbd> zoom / ⚡ lightning<br>
-    <kbd>Wheel</kbd>/<kbd>1-7</kbd> weapon · <kbd>1·1</kbd> dual · <kbd>P</kbd> mute<br>
+    <kbd>Wheel</kbd>/<kbd>1-8</kbd> weapon · <kbd>1·1</kbd> dual · <kbd>4·4</kbd> 🔥 fire hands · <kbd>P</kbd> mute<br>
     <kbd>~</kbd> then type <kbd>god</kbd> — god mode + infinite ammo
   </div>
 </div>
@@ -333,6 +333,14 @@
   function addWalk(x,z,w,d,y){walkSurfaces.push({x,z,w,d,y});}
   function wallB(w,h,d,x,y,z,mat=M.stucco){const m=box(w,h,d,mat,x,y,z);addColl(m);return m;}
   function polyInside(x,z,poly){let inside=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const xi=poly[i][0],zi=poly[i][1],xj=poly[j][0],zj=poly[j][1];if(((zi>z)!==(zj>z))&&(x<(xj-xi)*(z-zi)/(zj-zi)+xi))inside=!inside;}return inside;}
+  // Unified road styling (matches the causeway): yellow centre dashes + pale edge lines
+  const roadDashM=neon(0xffe45c,.65);
+  const roadEdgeM=new THREE.MeshStandardMaterial({color:0xd8d8d0,roughness:.8});
+  function laneDashes(x,z,w,d,y=.19){
+    const horiz=w>d,len=horiz?w:d;
+    for(let t=-len/2+2.5;t<len/2-2;t+=5.5){const m=box(horiz?2.1:.32,.03,horiz?.32:2.1,roadDashM,x+(horiz?t:0),y,z+(horiz?0:t));m.castShadow=false;world.add(m);}
+    for(const s of[-1,1]){const e=box(horiz?len:.2,.03,horiz?.2:len,roadEdgeM,x+(horiz?0:s*(w/2-.18)),y,z+(horiz?s*(d/2-.18):0));e.castShadow=false;world.add(e);}
+  }
 
   /* ============================= ISLANDS ============================= */
   const isl0=[[-87,-38],[-75,-61],[-44,-62],[-9,-59],[32,-62],[74,-48],[76,-20],[76,15],[76,41],[37,54],[-2,60],[-47,54],[-85,33],[-104,1]];
@@ -424,17 +432,17 @@
     const pathMat=new THREE.MeshStandardMaterial({color:0xd4aa62,roughness:.92});
     const pathEdge=neon(0xffaa00,0.7);
     // South corridor from bridge entrance down to main junction
-    world.add(box(16,.12,54,pathMat,5,0.1,260));addWalk(5,260,16,54,.14);
+    world.add(box(16,.12,54,M.asphalt,5,0.1,260));addWalk(5,260,16,54,.14);laneDashes(5,260,16,54);
     // E-W main boulevard from bridge corridor to pyramid (z=275)
-    world.add(box(190,.12,16,pathMat,95,0.1,277));addWalk(95,277,190,16,.14);
+    world.add(box(190,.12,16,M.asphalt,95,0.1,277));addWalk(95,277,190,16,.14);laneDashes(95,277,190,16);
     // Pyramid approach north road (x=175, junction z=277 → pyramid z=305)
-    world.add(box(16,.12,28,pathMat,px,0.1,291));addWalk(px,291,16,28,.14);
+    world.add(box(16,.12,28,M.asphalt,px,0.1,291));addWalk(px,291,16,28,.14);laneDashes(px,291,16,28);
     // Pyramid plaza — wide flat area around the pyramid
     world.add(box(90,.08,90,pathMat,px,0.07,pz));addWalk(px,pz,90,90,.1);
     // E-W road east of pyramid toward island edge
-    world.add(box(100,.12,14,pathMat,230,0.1,pz));addWalk(230,pz,100,14,.14);
+    world.add(box(100,.12,14,M.asphalt,230,0.1,pz));addWalk(230,pz,100,14,.14);laneDashes(230,pz,100,14);
     // S road from pyramid toward south end
-    world.add(box(14,.12,60,pathMat,px,0.1,358));addWalk(px,358,14,60,.14);
+    world.add(box(14,.12,60,M.asphalt,px,0.1,358));addWalk(px,358,14,60,.14);laneDashes(px,358,14,60);
     // Neon edge strips along main boulevard for visibility
     for(const[ex,ez,ew,ed] of [[5,277,16,4],[95,269,190,3],[95,285,190,3]]){
       world.add(box(ew,.18,ed,pathEdge,ex,.18,ez));
@@ -633,7 +641,9 @@
   water.position.y=-0.42;water.receiveShadow=true;scene.add(water);
 
   /* ============================= PATHS ============================= */
-  function mkPath(pts,w=1.6,mat=M.path){for(let i=0;i<pts.length-1;i++){const a=new THREE.Vector3(pts[i][0],.08,pts[i][1]),b=new THREE.Vector3(pts[i+1][0],.08,pts[i+1][1]);const mid=a.clone().add(b).multiplyScalar(.5);const len=a.distanceTo(b);const p=box(w,.08,len,mat,mid.x,.09,mid.z);p.rotation.y=Math.atan2(b.x-a.x,b.z-a.z);p.receiveShadow=true;p.castShadow=false;world.add(p);}}
+  function mkPath(pts,w=1.6,mat=M.asphalt){for(let i=0;i<pts.length-1;i++){const a=new THREE.Vector3(pts[i][0],.08,pts[i][1]),b=new THREE.Vector3(pts[i+1][0],.08,pts[i+1][1]);const mid=a.clone().add(b).multiplyScalar(.5);const len=a.distanceTo(b);const ang=Math.atan2(b.x-a.x,b.z-a.z);const p=box(w,.08,len,mat,mid.x,.09,mid.z);p.rotation.y=ang;p.receiveShadow=true;p.castShadow=false;world.add(p);
+    for(const s of[-1,1]){const e=box(.2,.03,len,roadEdgeM,mid.x+Math.cos(ang)*s*(w/2-.16),.145,mid.z-Math.sin(ang)*s*(w/2-.16));e.rotation.y=ang;e.castShadow=false;world.add(e);}
+    for(let t=2.2;t<len-2;t+=5.5){const k=t/len;const d=box(.32,.03,2.1,roadDashM,a.x+(b.x-a.x)*k,.15,a.z+(b.z-a.z)*k);d.rotation.y=ang;d.castShadow=false;world.add(d);}}}
   mkPath([[-62,-26],[-48,-16],[-31,-11],[-10,-4],[12,-3],[38,-7],[60,-17]],2.2);
   mkPath([[-19,-41],[-8,-12],[-3,28]],1.55);
   mkPath([[60,-17],[74,-14]],2.35);mkPath([[86,-10],[114,-8]],2.35);
@@ -688,11 +698,11 @@
     const gren=neon(0x00aa33,1.1);
     const trch=neon(0xff7700,1.3);
 
-    // ── COBBLESTONE STREETS ──
-    world.add(box(11,.16,130,cob,12,.08,143));addWalk(12,143,11,130,.2);   // Main Ave N-S
-    world.add(box(268,.16,11,cob,15,.08,140));addWalk(15,140,268,11,.2);   // Gallows Cross E-W
-    world.add(box(9,.16,100,cob,100,.08,147));addWalk(100,147,9,100,.2);   // East Lane N-S
-    world.add(box(9,.16,100,cob,-78,.08,147));addWalk(-78,147,9,100,.2);   // West Lane N-S
+    // ── STREETS (asphalt + yellow lane markings) ──
+    world.add(box(11,.16,130,M.asphalt,12,.08,143));addWalk(12,143,11,130,.2);laneDashes(12,143,11,130);   // Main Ave N-S
+    world.add(box(268,.16,11,M.asphalt,15,.08,140));addWalk(15,140,268,11,.2);laneDashes(15,140,268,11);   // Gallows Cross E-W
+    world.add(box(9,.16,100,M.asphalt,100,.08,147));addWalk(100,147,9,100,.2);laneDashes(100,147,9,100);   // East Lane N-S
+    world.add(box(9,.16,100,M.asphalt,-78,.08,147));addWalk(-78,147,9,100,.2);laneDashes(-78,147,9,100);   // West Lane N-S
     world.add(box(58,.1,44,cob,12,.05,138));addWalk(12,138,58,44,.12);     // Cathedral Square paving
 
     // ── GRAND CATHEDRAL OF BLACKTHORN ──
@@ -1020,9 +1030,17 @@
         g.castShadow=true;
         return{mesh:g,prop:pg};
       }
+      // planes patrol the ENTIRE world — one orbit per district + two grand world tours
       for(const[cx,cz,radius,alt,spd,phase] of[
-        [12,148,90,66,.38,0],[12,148,126,84,.24,2.1],[12,148,62,74,.58,4.2],
-        [12,148,150,78,.17,1.0],[12,148,76,70,.49,3.2],[12,148,110,92,.30,5.5]
+        [12,148,110,84,.30,2.1],          // Blackthorn
+        [128,60,330,112,.14,0],           // grand world tour (outer)
+        [128,60,285,100,-.11,3.1],        // grand world tour (counter-rotating)
+        [162,-168,120,92,.30,1.5],        // tundra
+        [175,305,140,102,.22,4.2],        // pyramid
+        [315,152,110,88,.35,2.6],         // jungle fortress
+        [-120,-170,90,72,.42,.8],         // nuketown
+        [340,0,120,96,.28,5.5],           // neo tokyo
+        [570,0,150,108,.26,1.9]           // city sprawl
       ]){
         const{mesh,prop}=mkPlane();
         mesh.position.set(cx+Math.cos(phase)*radius,alt,cz+Math.sin(phase)*radius);
@@ -1041,8 +1059,8 @@
         for(let i=0;i<10;i++){const a=i/10*Math.PI*2;const bl=new THREE.Mesh(new THREE.SphereGeometry(.85,8,8),neon(i%2?0x00ffcc:0x0088ff,3.5));bl.position.set(Math.cos(a)*10,-1.2,Math.sin(a)*10);ug.add(bl);}
         const uLight=new THREE.PointLight(0x00eeff,3.5,60,2);uLight.position.set(0,-2,0);ug.add(uLight);
         ug.userData.bodyMats=[uM];ug.castShadow=true;
-        ug.position.set(12+200,140,148);scene.add(ug);
-        cityPlanes.push({mesh:ug,prop:ring,cx:12,cz:148,radius:200,altitude:140,orbitSpeed:.10,angle:0,hp:500,alive:true,falling:false,flash:0,fallSpd:0,fallVx:0,fallVz:0,isUFO:true});
+        ug.position.set(128+320,140,40);scene.add(ug);
+        cityPlanes.push({mesh:ug,prop:ring,cx:128,cz:40,radius:320,altitude:140,orbitSpeed:.10,angle:0,hp:500,alive:true,falling:false,flash:0,fallSpd:0,fallVx:0,fallVz:0,isUFO:true});
       })();
     })();
 
@@ -1221,12 +1239,12 @@
     for(let gz=CZ-34;gz<=CZ+34;gz+=12)world.add(box(76,.2,.3,neon(IC2,1.6),CX,.28,gz));
 
     // ── ICE STREET GRID (E-W main + N-S cross + parallel boulevards) ──
-    world.add(box(240,.3,14,iceRdM,CX,.15,CZ));addWalk(CX,CZ,240,14,.3);
-    world.add(box(14,.3,220,iceRdM,CX,.15,CZ));addWalk(CX,CZ,14,220,.3);
-    world.add(box(240,.3,10,iceRdM,CX,.15,CZ-62));addWalk(CX,CZ-62,240,10,.3);
-    world.add(box(240,.3,10,iceRdM,CX,.15,CZ+62));addWalk(CX,CZ+62,240,10,.3);
-    world.add(box(10,.3,220,iceRdM,CX-74,.15,CZ));addWalk(CX-74,CZ,10,220,.3);
-    world.add(box(10,.3,220,iceRdM,CX+74,.15,CZ));addWalk(CX+74,CZ,10,220,.3);
+    world.add(box(240,.3,14,M.asphalt,CX,.15,CZ));addWalk(CX,CZ,240,14,.3);laneDashes(CX,CZ,240,14,.33);
+    world.add(box(14,.3,220,M.asphalt,CX,.15,CZ));addWalk(CX,CZ,14,220,.3);laneDashes(CX,CZ,14,220,.33);
+    world.add(box(240,.3,10,M.asphalt,CX,.15,CZ-62));addWalk(CX,CZ-62,240,10,.3);laneDashes(CX,CZ-62,240,10,.33);
+    world.add(box(240,.3,10,M.asphalt,CX,.15,CZ+62));addWalk(CX,CZ+62,240,10,.3);laneDashes(CX,CZ+62,240,10,.33);
+    world.add(box(10,.3,220,M.asphalt,CX-74,.15,CZ));addWalk(CX-74,CZ,10,220,.3);laneDashes(CX-74,CZ,10,220,.33);
+    world.add(box(10,.3,220,M.asphalt,CX+74,.15,CZ));addWalk(CX+74,CZ,10,220,.3);laneDashes(CX+74,CZ,10,220,.33);
     // Ice lane dashes
     for(let lx=CX-110;lx<CX+110;lx+=10)world.add(box(5,.04,.4,neon(IC1,1.4),lx,.34,CZ+7));
     for(let lz=CZ-100;lz<CZ+100;lz+=10)world.add(box(.4,.04,5,neon(IC1,1.4),CX+7,.34,lz));
@@ -1394,9 +1412,16 @@
     // Centre circle with town sign
     world.add(cyl(5,5,.12,20,whtM,NX,.11,-146));
     world.add(cyl(4.3,4.3,.2,20,lawnM,NX,.14,-146));
-    // Connector roads to the bridges
-    {const r1=box(6,.12,52,M.asphalt,-95,.07,-116);r1.rotation.y=Math.atan2(-50,-12);r1.receiveShadow=true;world.add(r1);}
-    {const r2=box(7,.12,78,M.asphalt,-73,.07,-148);r2.rotation.y=Math.atan2(-78,4);r2.receiveShadow=true;world.add(r2);}
+    // Connector roads to the bridges (causeway-style: dashes + edge lines)
+    mkPath([[-70,-110],[-116,-121]],6);
+    mkPath([[-34,-150],[-113,-146]],7);
+    // Residential lanes for the suburb
+    for(const[lx,lz0,lz1] of[[-180,-224,-128],[-56,-212,-124]]){
+      const llen=lz1-lz0,lmz=(lz0+lz1)/2;
+      world.add(box(8,.13,llen,M.asphalt,lx,.08,lmz));laneDashes(lx,lmz,8,llen,.18);
+    }
+    mkPath([[-176,-222],[-136,-222]],6);  // lane W → south cul-de-sac
+    mkPath([[-60,-126],[-104,-122]],6);   // lane E → north cul-de-sac
 
     // ── SIGNS (painted wood boards) ──
     function woodSign(lines,x,z,ry,w=6,h=2.4){
@@ -1542,6 +1567,46 @@
     for(const[tx2,tz2,ts] of[[-182,-140,1.2],[-176,-196,1.1],[-142,-226,1.3],[-60,-214,1.2],[-44,-160,1.1],[-58,-122,1.25]])makeTree(tx2,tz2,ts);
     const dryM=new THREE.MeshStandardMaterial({color:0x8a7a4c,roughness:.98});
     for(const[px2,pz2] of[[-160,-130],[-90,-220],[-48,-140],[-180,-170]])world.add(box(rand(5,9),.05,rand(5,9),dryM,px2,.03,pz2));
+
+    // ── SUBURB: 40 pastel tract homes along the lanes ──
+    (()=>{
+      const palette=[[0xe8dcc0,0x5a4a3a],[0xa8c8e0,0x3a4048],[0xd8a8b8,0x4a4038],[0xa8d0a0,0x4a4038],[0xd0cabf,0x5a3a30],[0xc8b088,0x3a4048],[0xdcc684,0x5a4a3a],[0x9ab8a0,0x4a4038]];
+      const doorM2=new THREE.MeshStandardMaterial({color:0x54382a,roughness:.85});
+      const placed=[];
+      // exclusion rects [x0,x1,z0,z1]: streets, lanes, hero houses/yards, tower, signs, bridgeheads
+      const EXR=[[-137,-103,-235,-105],[-171,-128,-215,-179],[-111,-69,-161,-125],[-132,-108,-246,-224],[-84,-68,-125,-111],[-125,-63,-127,-103],[-115,-29,-157,-141],[-186,-174,-226,-126],[-62,-50,-214,-122],[-182,-132,-227,-217],[-108,-56,-129,-119]];
+      const treesXZ=[[-182,-140],[-176,-196],[-142,-226],[-60,-214],[-44,-160],[-58,-122]];
+      const starsXZ=[[-150,-210],[-95,-135],[-120,-185],[-165,-155],[-70,-190]];
+      function okSpot(hx,hz){
+        for(const[dx,dz] of[[-5.5,-4.6],[5.5,-4.6],[-5.5,4.6],[5.5,4.6]])if(!polyInside(hx+dx,hz+dz,isl7))return false;
+        for(const[a,b2,c,d] of EXR)if(hx+5>a&&hx-5<b2&&hz+4.5>c&&hz-4.5<d)return false;
+        for(const[tx2,tz2] of treesXZ)if(Math.hypot(hx-tx2,hz-tz2)<8)return false;
+        for(const[sx,sz] of starsXZ)if(Math.hypot(hx-sx,hz-sz)<7)return false;
+        for(const p of placed)if(Math.abs(hx-p[0])<9.5&&Math.abs(hz-p[1])<8)return false;
+        return true;
+      }
+      let ci=0;
+      function houseLite(hx,hz,f){
+        const[wc,rc]=palette[(ci++)%palette.length];
+        const wallM2=new THREE.MeshStandardMaterial({color:wc,roughness:.88});
+        const roofM2=new THREE.MeshStandardMaterial({color:rc,roughness:.9});
+        world.add(wallB(8,3.1,7,hx,1.85,hz,wallM2));
+        const rf2=gabledRoof(9,8,2.1,roofM2);rf2.position.set(hx,3.45,hz);world.add(rf2);
+        const fx2=hx+f*4;
+        world.add(box(.12,2.1,1.2,doorM2,fx2+f*.07,1.35,hz));
+        for(const oz of[-2.2,2.2]){world.add(box(.1,1.3,1.3,whtM,fx2+f*.06,2,hz+oz));world.add(box(.1,1.1,1.1,glassM,fx2+f*.1,2,hz+oz));}
+        for(const s of[-1,1]){world.add(box(1.4,1.3,.1,whtM,hx-f*1.2,2,hz+s*3.55));world.add(box(1.2,1.1,.1,glassM,hx-f*1.2,2,hz+s*3.58));}
+        world.add(box(1.8,.3,1.4,conM,fx2+f*.8,.15,hz));
+        if(rnd()<.22)mkCar(fx2+f*4,hz+rand(-1.5,1.5),rand(-.2,.2),pick([0x8a2f1e,0x6f7d4e,0x5a7a8a,0x9aa5ad,0xb8863a]),1.05);
+        placed.push([hx,hz]);
+      }
+      const rows=[[-192,1,-216,-132],[-168,-1,-216,-132],[-138,1,-214,-130],[-102,-1,-214,-130],[-68,1,-208,-128],[-44,-1,-204,-136]];
+      for(const[rx,f,rz0,rz1] of rows)for(let hz=rz0;hz<=rz1;hz+=12){if(placed.length>=40)break;if(okSpot(rx,hz))houseLite(rx,hz,f);}
+      for(const hx of[-160,-148,-88,-76])if(placed.length<40&&okSpot(hx,-228))houseLite(hx,-228,hx<-120?1:-1);
+      for(const hx of[-148,-88])if(placed.length<40&&okSpot(hx,-106))houseLite(hx,-106,hx<-120?1:-1);
+      let tries=0;
+      while(placed.length<40&&tries++<4000){const hx=rand(-200,-40),hz=rand(-240,-102);if(okSpot(hx,hz))houseLite(hx,hz,hx<-120?1:-1);}
+    })();
 
     addLabel('NUKETOWN',NX,26,NZ);markers.push({name:'Nuketown',x:NX,z:NZ});
   })();
@@ -2243,10 +2308,11 @@
 
   function updateWeaponHud(){
     const w=WEAPONS[wIdx];
-    document.getElementById('wName').textContent=w.name+((dualWield&&w.dualable)?' ×2':'');
-    document.getElementById('wName').style.color='#'+w.color.toString(16).padStart(6,'0');
+    const isFH=w.name==='FORCE PUSH'&&fireHands;
+    document.getElementById('wName').textContent=(isFH?'🔥 FIRE HANDS':w.name)+((dualWield&&w.dualable)?' ×2':'');
+    document.getElementById('wName').style.color=isFH?'#ff7722':'#'+w.color.toString(16).padStart(6,'0');
     document.getElementById('wAmmo').textContent=(w.ammo===Infinity?'∞':w.ammo)+' / '+(w.maxAmmo===Infinity?'∞':w.maxAmmo);
-    document.getElementById('wDmg').textContent=w.name==='FORCE PUSH'?'KINETIC':'DMG '+(w.pellets>1?w.dmg*w.pellets:w.dmg);
+    document.getElementById('wDmg').textContent=w.name==='FORCE PUSH'?(isFH?'FLAME':'KINETIC'):'DMG '+(w.pellets>1?w.dmg*w.pellets:w.dmg);
     const dt2=document.getElementById('dualTag');dt2.classList.toggle('on',dualWield&&w.dualable);dt2.style.display=w.dualable?'inline-block':'none';
     const sl=document.getElementById('wslots');sl.innerHTML='';WEAPONS.forEach((ww,i)=>{const s=document.createElement('div');s.className='slot'+(i===wIdx?' active':'');s.textContent=(i+1)+' '+ww.name.split(' ')[0];sl.appendChild(s);});
   }
@@ -2518,6 +2584,52 @@
     const v=document.getElementById('vitals');if(v)v.style.boxShadow=state.god?'0 0 30px rgba(255,228,92,.7),inset 0 0 18px rgba(255,228,92,.25)':'';
   }
   let flying=false,lastSpace=0,zooming=false;const baseFOV=74;
+  // FIRE HANDS — double-tap 4 morphs Force Push into a flame-spell (LMB streams long flames)
+  let fireHands=false,lastFour=0,flameSfxT=0;
+  const FLAME_GEO=new THREE.SphereGeometry(.5,7,6);
+  const flamePool=[];
+  function spawnFlameBurst(){
+    const dir=new THREE.Vector3();camera.getWorldDirection(dir);
+    const right=new THREE.Vector3().crossVectors(dir,new THREE.Vector3(0,1,0)).normalize();
+    for(const s of[-1,1]){
+      const from=camera.position.clone().addScaledVector(dir,1.0).addScaledVector(right,s*.28);from.y-=.18;
+      for(let i=0;i<2;i++){
+        let f=flamePool.find(q=>!q.active);
+        if(!f){if(flamePool.length>=140)break;const m=new THREE.Mesh(FLAME_GEO,new THREE.MeshBasicMaterial({color:0xff8830,transparent:true,opacity:.85,blending:THREE.AdditiveBlending,depthWrite:false}));m.frustumCulled=false;scene.add(m);f={mesh:m,active:false,vel:new THREE.Vector3(),life:0,max:.5};flamePool.push(f);}
+        f.active=true;f.life=0;f.max=rand(.42,.68);
+        f.mesh.visible=true;f.mesh.position.copy(from);
+        f.vel.copy(dir).multiplyScalar(rand(26,36)).add(new THREE.Vector3(rand(-2.5,2.5),rand(-1,3),rand(-2.5,2.5)));
+        f.mesh.material.color.setHex(pick([0xffdd66,0xff9933,0xff5522]));
+        f.mesh.material.opacity=.85;
+        f.mesh.scale.setScalar(rand(.25,.45));
+      }
+    }
+  }
+  function updateFireHands(dt){
+    spawnFlameBurst();
+    const dir=new THREE.Vector3();camera.getWorldDirection(dir);const cp=camera.position;
+    for(const g of golems){
+      if(!g.userData.alive)continue;
+      const toG=new THREE.Vector3().subVectors(g.position.clone().setY(cp.y),cp);const dist=toG.length();
+      if(dist>32)continue;
+      const dot=toG.normalize().dot(dir);
+      if(dot>.86||dist<4)damageGolem(g,150*dt*Math.max(.25,1.1-dist/34));
+    }
+    flameSfxT-=dt;if(flameSfxT<=0){sfx('plasma');flameSfxT=.3;}
+    muzzleLight.color.setHex(0xff7722);muzzleLight.intensity=2.2+Math.random()*1.4;
+    recoil=Math.min(.05,recoil+dt*.12);
+  }
+  function updateFlames(dt){
+    for(const f of flamePool){
+      if(!f.active)continue;
+      f.life+=dt;const k=f.life/f.max;
+      if(k>=1){f.active=false;f.mesh.visible=false;continue;}
+      f.vel.y+=dt*6;
+      f.mesh.position.addScaledVector(f.vel,dt);
+      f.mesh.scale.setScalar(f.mesh.scale.x+dt*3.4);
+      f.mesh.material.opacity=.85*(1-k);
+    }
+  }
   let bobT=0;
   // Cached DOM elements touched every frame
   const scopeEl=document.getElementById('scope');
@@ -2536,7 +2648,7 @@
     if(e.code==='Digit1'){const now=performance.now();if(now-lastOne<320){toggleDual();}else{selectWeapon(0);}lastOne=now;}
     else if(e.code==='Digit2')selectWeapon(1);
     else if(e.code==='Digit3')selectWeapon(2);
-    else if(e.code==='Digit4')selectWeapon(3);
+    else if(e.code==='Digit4'){const now=performance.now();if(now-lastFour<320&&wIdx===3){fireHands=!fireHands;equipWeapon();document.getElementById('fpCharge').style.display=fireHands?'none':'block';showBanner(fireHands?'🔥 FIRE HANDS':'FORCE PUSH',fireHands?'hold LMB — stream of flame':'kinetic charge',1300);sfx('switch');}else{selectWeapon(3);}lastFour=now;}
     else if(e.code==='Digit5')selectWeapon(4);
     else if(e.code==='Digit6')selectWeapon(5);
     else if(e.code==='Digit7')selectWeapon(6);
@@ -2551,7 +2663,7 @@
   renderer.domElement.addEventListener('mousedown',e=>{
     if(!state.started||state.over)return;
     if(!locked){lockPointer();return;}
-    if(e.button===0){const w=WEAPONS[wIdx];if(w.name==='FORCE PUSH'){fpCharging=true;}else{firing=true;fireWeapon();}}
+    if(e.button===0){const w=WEAPONS[wIdx];if(w.name==='FORCE PUSH'){if(fireHands)firing=true;else fpCharging=true;}else{firing=true;fireWeapon();}}
     if(e.button===2){const w=WEAPONS[wIdx];if(w.name==='FORCE PUSH'){lightningStrike();}else{zooming=true;}}
   });
   renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
@@ -2621,7 +2733,7 @@
 
   function updatePlayer(dt){
     camera.rotation.set(pitch,yaw,0);
-    const speed=(keys.ShiftLeft||keys.ShiftRight)?(flying?16:37.5):11.1;
+    const speed=(keys.ShiftLeft||keys.ShiftRight)?(flying?25.6:37.5):(flying?17.8:11.1);
     _fwd.set(-Math.sin(yaw),0,-Math.cos(yaw));
     _right.set(Math.cos(yaw),0,-Math.sin(yaw));
     _move.set(0,0,0);
@@ -2635,7 +2747,7 @@
       // free flight: no gravity. Space ascends, Shift descends.
       velocity.y=0;let vy=0;
       if(keys.Space)vy+=1;if(keys.ShiftLeft||keys.ShiftRight)vy-=1;
-      camera.position.y+=vy*16*dt;
+      camera.position.y+=vy*25.6*dt;
       const minY=surfaceY(camera.position.x,camera.position.z,camera.position.y-playerHeight)+playerHeight;
       camera.position.y=Math.max(minY,Math.min(150,camera.position.y));
       canJump=false;
@@ -2646,8 +2758,9 @@
       const feetY=camera.position.y-playerHeight;const floorY=surfaceY(camera.position.x,camera.position.z,feetY)+playerHeight;
       if(camera.position.y<=floorY+.05){camera.position.y=floorY;velocity.y=0;canJump=true;}
     }
-    camera.position.x=TL.clamp(camera.position.x,-95,855);
-    camera.position.z=TL.clamp(camera.position.z,-225,225);
+    // world bounds — generous box around ALL islands + sprawl (true open world, no invisible walls)
+    camera.position.x=TL.clamp(camera.position.x,-280,900);
+    camera.position.z=TL.clamp(camera.position.z,-330,520);
     // view bob + recoil
     // animate viewmodel bob + recoil
     bobT+=dt*(moving?speed*1.1:2);
@@ -2843,6 +2956,8 @@
       // firing hold
       const w=WEAPONS[wIdx];
       if(firing&&w.name!=='FORCE PUSH')fireWeapon();
+      if(firing&&w.name==='FORCE PUSH'&&fireHands)updateFireHands(dt);
+      else if(w.name==='FORCE PUSH'&&muzzleLight.intensity>0&&!firing)muzzleLight.intensity=0;
       if(fpCharging){fpCharge=Math.min(1,fpCharge+dt*.9);document.getElementById('fpFill').style.width=(fpCharge*100)+'%';}
       // Force Push hand gesture: curl fingers closed while charging, splay open otherwise
       const fpm=gunModels.forcepush;
@@ -2852,8 +2967,15 @@
         fpHand+=(targetOpen-fpHand)*Math.min(1,dt*14);
         const curl=1-fpHand;
         fpd.fingers.forEach(f=>{f.rotation.x=f.userData.baseRotX-curl*1.15;if(f.userData.tip)f.userData.tip.rotation.x=-.25-curl*1.25;});
-        fpd.emitterCore.scale.setScalar(0.55+fpCharge*1.5+fpHand*0.15);
-        fpd.emitterLight.intensity=1+fpCharge*5;
+        // fire-hands mode: orange emitter glow + flicker while streaming flame
+        fpd.emitterLight.color.setHex(fireHands?0xff7722:0x19f0ff);
+        if(fireHands){
+          fpd.emitterCore.scale.setScalar(.7+Math.random()*.22+(firing?.55:0));
+          fpd.emitterLight.intensity=firing?4+Math.random()*2.2:1.5;
+        }else{
+          fpd.emitterCore.scale.setScalar(0.55+fpCharge*1.5+fpHand*0.15);
+          fpd.emitterLight.intensity=1+fpCharge*5;
+        }
         fpd.orbit.rotation.z+=dt*(1.2+fpCharge*5);fpd.orbit.rotation.x+=dt*.7;
         // small-orb particles
         fpd.moteData.forEach((d,mi)=>{d.a+=dt*d.speed*(1+fpCharge*2);const r=d.r*(1-fpCharge*.5);const m=fpd.moteMeshes[mi];m.position.set(Math.cos(d.a)*r,d.y+Math.sin(d.a*1.3)*.1,Math.sin(d.a)*r);m.scale.setScalar(0.7+fpCharge*0.6);});
@@ -2867,7 +2989,7 @@
       scopeEl.style.opacity=zooming?'1':'0';
       // 2X damage boost timer
       if(state.dmgMultTimer>0){state.dmgMultTimer-=dt;if(state.dmgMultTimer<=0){state.dmgMult=1;}updateBoostHud();}
-      updateGolems(dt);updateProjs(dt);updateEProjs(dt);updateBursts(dt);updatePickups(dt);updateLightnings(dt);updateTimeOfDay(dt);updateCityTraffic(dt);updateCityPlanes(dt);
+      updateGolems(dt);updateProjs(dt);updateEProjs(dt);updateBursts(dt);updatePickups(dt);updateLightnings(dt);updateFlames(dt);updateTimeOfDay(dt);updateCityTraffic(dt);updateCityPlanes(dt);
       if(activeMode==='starSearch')updateStarSearch(dt);
       if(activeMode==='ufoAttack')updateUfoAttack(dt);
       // wave spawning
