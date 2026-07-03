@@ -100,7 +100,7 @@
   <div class="keys">
     <kbd>WASD</kbd> move · <kbd>Shift</kbd> run · <kbd>Space</kbd> jump · <kbd>Space·Space</kbd> fly<br>
     <kbd>LMB</kbd> auto-fire / charge Force Push · <kbd>RMB</kbd> zoom / ⚡ lightning<br>
-    <kbd>Wheel</kbd>/<kbd>1-8</kbd> weapon · <kbd>1·1</kbd> dual · <kbd>4·4</kbd> 🔥 fire hands · <kbd>P</kbd> mute<br>
+    <kbd>Wheel</kbd>/<kbd>1-8 9 0 - =</kbd> weapon · <kbd>1·1</kbd> dual · <kbd>4·4</kbd> 🔥 fire hands · <kbd>P</kbd> mute<br>
     <kbd>~</kbd> then type <kbd>god</kbd> — god mode + infinite ammo
   </div>
 </div>
@@ -147,6 +147,9 @@
       <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
         <button class="modeSelBtn lvlBtn active" id="lvNeon" onclick="selectLevel('neon',this)">🌆 NEON CITY</button>
         <button class="modeSelBtn lvlBtn" id="lvBlackout" onclick="selectLevel('blackout',this)">☠ BLACKOUT PROTOCOL</button>
+      </div>
+      <div style="margin-top:8px;">
+        <a href="blackout-protocol-2.html" style="font-family:Orbitron,Arial;font-size:10px;letter-spacing:2px;color:#c9a15f;text-decoration:none;border:1px solid rgba(201,161,95,.4);border-radius:8px;padding:5px 12px;display:inline-block;">🎖 BLACKOUT PROTOCOL II — CLASSIC STANDALONE</a>
       </div>
     </div>
     <div style="display:flex;gap:12px;justify-content:center;align-items:center;margin-top:10px;flex-wrap:wrap;">
@@ -208,7 +211,7 @@
   renderer.shadowMap.enabled = false; // shadows re-render the whole city every frame — biggest lag source, off for perf
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 0.92;
+  renderer.toneMappingExposure = 1.0; // cleaner, brighter grade (BP2-style)
   document.body.appendChild(renderer.domElement);
 
   const clock = new THREE.Clock();
@@ -2124,6 +2127,11 @@
     {name:'PULSE CANNON', color:0xff7a18,dmg:8,  cd:.045,spd:210,spread:.016,ammo:700,    maxAmmo:700,     dualable:false,pellets:1,splash:0},
     {name:'BAZOOKA',      color:0xff5a1e,dmg:80, cd:1.05,spd:62, spread:.004,ammo:18,     maxAmmo:18,      dualable:false,pellets:1,splash:18,splashDmg:220},
     {name:'RAIL GUN',     color:0x00ffff,dmg:380,cd:2.2, spd:420,spread:.0003,ammo:12,    maxAmmo:12,      dualable:false,pellets:1,splash:0},
+    // BLACKOUT PROTOCOL II arsenal
+    {name:'M4 VANGUARD',  color:0x9dff57,dmg:26, cd:.087,spd:170,spread:.012,ammo:240,   maxAmmo:240,     dualable:false,pellets:1,splash:0},
+    {name:'LONGBOW .50',  color:0xc9a15f,dmg:320,cd:1.45,spd:420,spread:.0004,ammo:20,   maxAmmo:20,      dualable:false,pellets:1,splash:0},
+    {name:'SPAS BREACHER',color:0xffa64d,dmg:13, cd:.8,  spd:120,spread:.06, ammo:48,    maxAmmo:48,      dualable:false,pellets:9,splash:0},
+    {name:'MGL HAVOC',    color:0xff6a4d,dmg:10, cd:.85, spd:70, spread:.008,ammo:24,    maxAmmo:24,      dualable:false,pellets:1,splash:12,splashDmg:160},
   ];
   let wIdx=0,dualWield=false,lastFire=0,dualHand=0;
   let fpCharging=false,fpCharge=0,fpHand=1;
@@ -2327,6 +2335,67 @@
     g.userData.muzzle=new THREE.Vector3(0,0,-.62);
     return g;
   }
+  /* ===== BLACKOUT PROTOCOL II weapon models (ported, scaled to this rig) ===== */
+  const _matOlive=new THREE.MeshStandardMaterial({color:0x2e3324,roughness:.7,metalness:.3});
+  const _matGrip2=new THREE.MeshStandardMaterial({color:0x2a2620,roughness:.9});
+  function _buildRifle(c){
+    const g=new THREE.Group();
+    _part(g,new THREE.BoxGeometry(.065,.085,.5),_matOlive,0,0,-.12);
+    _part(g,new THREE.BoxGeometry(.05,.03,.3),_matDark,0,.055,-.14);
+    let b=_part(g,new THREE.CylinderGeometry(.016,.016,.32,10),_matDark,0,.012,-.5);b.rotation.x=Math.PI/2;
+    b=_part(g,new THREE.CylinderGeometry(.024,.02,.07,8),_matDark,0,.012,-.66);b.rotation.x=Math.PI/2;
+    _part(g,new THREE.BoxGeometry(.05,.19,.09),_matDark,0,-.14,-.07,.3);
+    _part(g,new THREE.BoxGeometry(.05,.12,.06),_matGrip2,0,-.1,.12,.3);
+    _part(g,new THREE.BoxGeometry(.05,.09,.22),_matOlive,0,-.01,.26);
+    _part(g,new THREE.BoxGeometry(.06,.06,.2),_matGrip2,0,-.02,-.32);
+    _part(g,new THREE.BoxGeometry(.035,.045,.09),_matDark,0,.095,-.1);
+    _part(g,new THREE.BoxGeometry(.068,.006,.3),_accent(c),0,.042,-.2);
+    g.scale.setScalar(1.45);
+    g.userData.muzzle=new THREE.Vector3(0,.017,-1.0);
+    return g;
+  }
+  function _buildSniper(c){
+    const g=new THREE.Group();
+    _part(g,new THREE.BoxGeometry(.07,.09,.55),_matOlive,0,0,-.1);
+    let b=_part(g,new THREE.CylinderGeometry(.017,.017,.55,10),_matDark,0,.015,-.62);b.rotation.x=Math.PI/2;
+    _part(g,new THREE.BoxGeometry(.05,.05,.09),_matDark,0,.015,-.9);
+    b=_part(g,new THREE.CylinderGeometry(.03,.03,.22,12),_matDark,0,.1,-.08);b.rotation.x=Math.PI/2;
+    b=_part(g,new THREE.CylinderGeometry(.032,.032,.02,12),_glow(0x2a4a6a,.5),0,.1,-.2);b.rotation.x=Math.PI/2;
+    _part(g,new THREE.BoxGeometry(.05,.14,.1),_matDark,0,-.1,-.02);
+    _part(g,new THREE.BoxGeometry(.05,.12,.06),_matGrip2,0,-.1,.14,.3);
+    _part(g,new THREE.BoxGeometry(.055,.1,.26),_matOlive,0,-.015,.3);
+    _part(g,new THREE.BoxGeometry(.09,.1,.02),_matDark,0,-.08,-.5);
+    _part(g,new THREE.BoxGeometry(.074,.006,.4),_accent(c),0,.048,-.25);
+    g.scale.setScalar(1.45);
+    g.userData.muzzle=new THREE.Vector3(0,.022,-1.38);
+    return g;
+  }
+  function _buildSpas(c){
+    const g=new THREE.Group();
+    _part(g,new THREE.BoxGeometry(.07,.08,.32),_matSteel,0,0,.02);
+    let b=_part(g,new THREE.CylinderGeometry(.024,.024,.5,10),_matDark,0,.02,-.32);b.rotation.x=Math.PI/2;
+    b=_part(g,new THREE.CylinderGeometry(.02,.02,.42,10),_matSteel,0,-.028,-.28);b.rotation.x=Math.PI/2;
+    _part(g,new THREE.BoxGeometry(.065,.055,.14),_matWood,0,-.03,-.3);
+    _part(g,new THREE.BoxGeometry(.05,.12,.07),_matWood,0,-.09,.13,.35);
+    _part(g,new THREE.BoxGeometry(.05,.1,.2),_matWood,0,-.02,.26);
+    _part(g,new THREE.BoxGeometry(.074,.006,.28),_accent(c),0,.045,-.1);
+    g.scale.setScalar(1.45);
+    g.userData.muzzle=new THREE.Vector3(0,.029,-.84);
+    return g;
+  }
+  function _buildLauncher(c){
+    const g=new THREE.Group();
+    let b=_part(g,new THREE.CylinderGeometry(.09,.09,.16,14),_matDark,0,0,-.05);b.rotation.x=Math.PI/2;
+    b=_part(g,new THREE.CylinderGeometry(.045,.05,.3,12),_matOlive,0,0,-.3);b.rotation.x=Math.PI/2;
+    b=_part(g,new THREE.CylinderGeometry(.032,.032,.02,12),new THREE.MeshStandardMaterial({color:0x050505}),0,0,-.45);b.rotation.x=Math.PI/2;
+    _part(g,new THREE.BoxGeometry(.05,.13,.07),_matGrip2,0,-.12,.08,.3);
+    _part(g,new THREE.BoxGeometry(.05,.08,.2),_matOlive,0,0,.18);
+    _part(g,new THREE.BoxGeometry(.02,.06,.02),_matDark,0,.09,-.15);
+    b=_part(g,new THREE.TorusGeometry(.09,.012,8,16),_accent(c),0,0,-.13);
+    g.scale.setScalar(1.45);
+    g.userData.muzzle=new THREE.Vector3(0,0,-.67);
+    return g;
+  }
   const gunModels={
     pistol:    _buildPistol(0x19f0ff),
     smg:       _buildSMG(0xffd166),
@@ -2338,6 +2407,10 @@
     bazooka:   _buildBazooka(0xff5a1e),
     railgun:   _buildRailgun(0x00ffff),
     pistol2:   _buildPistol(0x19f0ff),
+    rifle:     _buildRifle(0x9dff57),
+    sniper:    _buildSniper(0xc9a15f),
+    spas:      _buildSpas(0xffa64d),
+    launcher:  _buildLauncher(0xff6a4d),
   };
   gunModels.shotgun2.position.set(-.44,0,0);
   gunModels.pistol2.position.set(-.44,0,0);
@@ -2355,7 +2428,8 @@
     const fpEl=document.getElementById('fpCharge');fpEl.style.display='none';
     const w=WEAPONS[wIdx];
     const keyMap={PISTOL:'pistol',SMG:'smg','DUAL SHOTGUNS':'shotgun',
-      'FORCE PUSH':'forcepush',PLASMA:'plasma','PULSE CANNON':'pulse',BAZOOKA:'bazooka','RAIL GUN':'railgun'};
+      'FORCE PUSH':'forcepush',PLASMA:'plasma','PULSE CANNON':'pulse',BAZOOKA:'bazooka','RAIL GUN':'railgun',
+      'M4 VANGUARD':'rifle','LONGBOW .50':'sniper','SPAS BREACHER':'spas','MGL HAVOC':'launcher'};
     const key=keyMap[w.name]||'pistol';
     Object.entries(gunModels).forEach(([k,m])=>m.visible=false);
     if(gunModels[key])gunModels[key].visible=true;
@@ -2420,7 +2494,7 @@
     // muzzle flash
     muzzleFlashMesh.material.opacity=.45;muzzleLight.intensity=1.4;
     setTimeout(()=>{muzzleFlashMesh.material.opacity=0;muzzleLight.intensity=0;},50);
-    sfx(({'PISTOL':'shot','SMG':'smg','DUAL SHOTGUNS':'blast','PLASMA':'plasma','PULSE CANNON':'smg','BAZOOKA':'blast','RAIL GUN':'plasma'})[w.name]||'shot');
+    sfx(({'PISTOL':'shot','SMG':'smg','DUAL SHOTGUNS':'blast','PLASMA':'plasma','PULSE CANNON':'smg','BAZOOKA':'blast','RAIL GUN':'plasma','M4 VANGUARD':'smg','LONGBOW .50':'plasma','SPAS BREACHER':'blast','MGL HAVOC':'blast'})[w.name]||'shot');
     // Rail gun: instantaneous cyan beam tracer
     if(w.name==='RAIL GUN'){
       const rFrom=baseTip.clone();const rTo=rFrom.clone().addScaledVector(dir,380);
@@ -2486,7 +2560,7 @@
     document.getElementById('wAmmo').textContent=(w.ammo===Infinity?'∞':w.ammo)+' / '+(w.maxAmmo===Infinity?'∞':w.maxAmmo);
     document.getElementById('wDmg').textContent=w.name==='FORCE PUSH'?(isFH?'FLAME':'KINETIC'):'DMG '+(w.pellets>1?w.dmg*w.pellets:w.dmg);
     const dt2=document.getElementById('dualTag');dt2.classList.toggle('on',dualWield&&w.dualable);dt2.style.display=w.dualable?'inline-block':'none';
-    const sl=document.getElementById('wslots');sl.innerHTML='';WEAPONS.forEach((ww,i)=>{const s=document.createElement('div');s.className='slot'+(i===wIdx?' active':'');s.textContent=(i+1)+' '+ww.name.split(' ')[0];sl.appendChild(s);});
+    const sl=document.getElementById('wslots');sl.innerHTML='';WEAPONS.forEach((ww,i)=>{const s=document.createElement('div');s.className='slot'+(i===wIdx?' active':'');s.textContent=(i<8?(i+1):['9','0','-','='][i-8])+' '+ww.name.split(' ')[0];sl.appendChild(s);});
   }
 
   /* ============================= STATE / HUD ============================= */
@@ -2825,6 +2899,10 @@
     else if(e.code==='Digit6')selectWeapon(5);
     else if(e.code==='Digit7')selectWeapon(6);
     else if(e.code==='Digit8')selectWeapon(7);
+    else if(e.code==='Digit9')selectWeapon(8);
+    else if(e.code==='Digit0')selectWeapon(9);
+    else if(e.code==='Minus')selectWeapon(10);
+    else if(e.code==='Equal')selectWeapon(11);
   });
   document.addEventListener('keyup',e=>keys[e.code]=false);
   addEventListener('wheel',e=>{if(!state.started)return;cycleWeapon(e.deltaY>0?1:-1);},{passive:true});
@@ -3166,7 +3244,7 @@
         fpm.position.x=(Math.random()-.5)*shake;fpm.position.y=(Math.random()-.5)*shake;fpm.rotation.z=(Math.random()-.5)*shake*1.5;
       }
       // scope zoom FOV — rail gun uses extreme zoom
-      const targetFOV=zooming?(WEAPONS[wIdx].name==='RAIL GUN'?6:32):baseFOV;
+      const targetFOV=zooming?((WEAPONS[wIdx].name==='RAIL GUN'||WEAPONS[wIdx].name==='LONGBOW .50')?6:32):baseFOV;
       if(Math.abs(camera.fov-targetFOV)>.05){camera.fov+=(targetFOV-camera.fov)*Math.min(1,dt*12);camera.updateProjectionMatrix();}
       scopeEl.style.opacity=zooming?'1':'0';
       // 2X damage boost timer
