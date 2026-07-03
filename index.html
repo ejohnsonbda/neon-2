@@ -143,6 +143,11 @@
         <button class="modeSelBtn" id="msStar" onclick="selectMode('star',this)">⭐ STAR SEARCH</button>
         <button class="modeSelBtn" id="msUfo" onclick="selectMode('ufo',this)">🛸 UFO ASSAULT</button>
       </div>
+      <div style="font-family:Orbitron,Arial;font-size:10px;letter-spacing:3px;color:#555;margin:12px 0 8px;">SELECT LEVEL</div>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+        <button class="modeSelBtn lvlBtn active" id="lvNeon" onclick="selectLevel('neon',this)">🌆 NEON CITY</button>
+        <button class="modeSelBtn lvlBtn" id="lvBlackout" onclick="selectLevel('blackout',this)">☠ BLACKOUT PROTOCOL</button>
+      </div>
     </div>
     <div style="display:flex;gap:12px;justify-content:center;align-items:center;margin-top:10px;flex-wrap:wrap;">
       <button id="startBtn">ENTER NEON CITY</button>
@@ -306,6 +311,24 @@
     // Always daytime — nightfall removed globally
     if(timeState.t>0.001){timeState.t=Math.max(0,timeState.t-dt*0.5);applyTimeOfDay(timeState.t);}
   }
+  // BLACKOUT PROTOCOL atmosphere — burnt night sky fades in while inside Sector 7, plus ash/fire fx
+  let blackoutBlend=0;
+  function updateBlackoutAtmo(dt){
+    if(camera.position.x<-140&&typeof blackoutFx!=='undefined'){
+      const t2=performance.now()/1000;
+      for(const f of blackoutFx.flickers)f.material.emissiveIntensity=1.8+Math.sin(t2*13+f.position.x)*.8+Math.random()*.5;
+      for(let i2=0;i2<blackoutFx.glows.length;i2++)blackoutFx.glows[i2].intensity=(i2?1.1:1.5)+Math.sin(t2*(i2?1.7:2.2)+i2*2)*.25;
+      if(blackoutFx.ash){const ap=blackoutFx.ash.geometry.attributes.position.array;for(let i2=0;i2<blackoutFx.ashVel.length;i2++){ap[i2*3]+=blackoutFx.ashVel[i2][0]*dt;ap[i2*3+1]+=blackoutFx.ashVel[i2][1]*dt;ap[i2*3+2]+=blackoutFx.ashVel[i2][2]*dt;if(ap[i2*3+1]<0)ap[i2*3+1]=36;}blackoutFx.ash.geometry.attributes.position.needsUpdate=true;}
+    }
+    const tgt=camera.position.x<-300?1:0;
+    if(Math.abs(blackoutBlend-tgt)<.01&&tgt===0)return;
+    blackoutBlend+=(tgt-blackoutBlend)*Math.min(1,dt*1.6);
+    const t=blackoutBlend;
+    scene.background.setHex(lerpHex(0x9fc4e8,0x191410,t));
+    scene.fog.color.setHex(lerpHex(0x9fc4e8,0x1d1712,t));
+    scene.fog.density=0.0029+(0.009-0.0029)*t;
+    sun.intensity=2.0-(2.0-.5)*t;ambient.intensity=.55-(.55-.32)*t;hemi.intensity=1.05-(1.05-.5)*t;
+  }
 
   /* ============================= SKY ============================= */
   (()=>{
@@ -379,6 +402,8 @@
   const isl7=[[-208,-150],[-196,-208],[-160,-238],[-104,-246],[-56,-232],[-34,-186],[-32,-140],[-52,-108],[-96,-96],[-152,-98],[-192,-116]];
   const suburbGnd=new THREE.MeshStandardMaterial({color:0x7c8a4c,roughness:.95,metalness:.01});
   makeIsland(isl7,suburbGnd);
+  // isl8: BLACKOUT PROTOCOL — Sector 7 urban combat zone, far west (own ground slab, no island terrain)
+  const isl8=[[-670,-230],[-290,-230],[-290,150],[-670,150]];
   (()=>{
     const px=175,pz=305; // pyramid center (island center)
     const pyrMat=new THREE.MeshStandardMaterial({color:0xd4a85a,roughness:.88,flatShading:true});
@@ -1636,6 +1661,107 @@
     addLabel('Fallout Freeway',mx,6,bz);markers.push({name:'Fallout Freeway',x:mx,z:bz});
   })();
 
+  /* ===== BLACKOUT PROTOCOL — SECTOR 7 (isl8): dystopian urban combat zone ===== */
+  const blackoutFx={flickers:[],glows:[],ash:null,ashVel:[]};
+  // war-prop builders — shared with the other levels (same models/materials everywhere)
+  const _bpConc=[0x3a3833,0x413d36,0x35322c,0x453f35,0x2f2d29];
+  const _bpWinLit=new THREE.MeshStandardMaterial({color:0x141210,emissive:0xff8c3a,emissiveIntensity:.9});
+  const _bpWinDead=new THREE.MeshStandardMaterial({color:0x0c0b0a,roughness:.4,metalness:.3});
+  const _bpRubbleM=new THREE.MeshStandardMaterial({color:0x36332d,roughness:1});
+  const _bpBarrM=new THREE.MeshStandardMaterial({color:0x4a463e,roughness:.95});
+  const _bpCarM=new THREE.MeshStandardMaterial({color:0x3d2e22,roughness:.85,metalness:.35});
+  const _bpCarGl=new THREE.MeshStandardMaterial({color:0x0a0a0a,roughness:.3,metalness:.4});
+  const _bpFireM=neon(0xff6a1e,2.4);
+  const _bpRubGeo=new THREE.DodecahedronGeometry(1,0);
+  function ruinBuilding(x,z,w,d,h,ruined){
+    const mat=new THREE.MeshStandardMaterial({color:pick(_bpConc),roughness:.92});
+    const hEff=ruined?h*rand(.55,.8):h;
+    world.add(wallB(w,hEff,d,x,hEff/2,z,mat));
+    const rows=Math.min(4,Math.max(2,Math.floor(hEff/5))),cols=Math.min(4,Math.max(2,Math.floor(w/5)));
+    for(let f=0;f<2;f++)for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+      if(rnd()<.45)continue;
+      const win=box(1.4,2,.06,rnd()<(ruined?.05:.14)?_bpWinLit:_bpWinDead,x-w/2+(c+.5)*(w/cols),2.2+r*(hEff-3)/rows,z+(d/2+.05)*(f?1:-1));
+      win.castShadow=false;world.add(win);
+    }
+    if(ruined)for(let i=0;i<3;i++){const ch=box(rand(1,3.2),rand(1,2.6),rand(1,3.2),mat,x+rand(-w/2,w/2)*.7,hEff+rand(.3,1.5),z+rand(-d/2,d/2)*.7);ch.rotation.set(rnd(),rnd(),rnd());world.add(ch);}
+  }
+  function rubblePile(x,z,s){
+    const r=new THREE.Mesh(_bpRubGeo,_bpRubbleM);r.position.set(x,s*.5,z);r.scale.setScalar(s);
+    r.rotation.set(rnd()*3,rnd()*3,rnd()*3);r.castShadow=r.receiveShadow=true;world.add(r);
+  }
+  function barricade(x,z,ry){
+    const b=box(3.6,1.4,1.1,_bpBarrM,x,.7,z);b.rotation.y=ry;world.add(b);
+  }
+  function wreckedCar(x,z,ry,burning){
+    const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=ry;world.add(g);
+    const hull=box(4.4,1.2,2,_bpCarM,0,.85,0);g.add(hull);
+    g.add(box(2.4,.9,1.9,_bpCarGl,-.2,1.85,0));
+    for(const[wx2,wz2] of[[-1.5,-1.05],[1.5,-1.05],[-1.5,1.05],[1.5,1.05]]){const wl=cyl(.36,.36,.26,10,_bpCarGl,wx2,.34,wz2);wl.rotation.x=Math.PI/2;g.add(wl);}
+    if(burning){const fl=new THREE.Mesh(new THREE.ConeGeometry(.55,1.6,7),_bpFireM);fl.position.set(-.2,2.6,0);g.add(fl);blackoutFx.flickers.push(fl);}
+  }
+  (()=>{
+    const BX=-480,BZ=-40,HALF=190;
+    const gndM=new THREE.MeshStandardMaterial({color:0x22201c,roughness:.95});
+    // ground slab (covers the water)
+    const slab=box(HALF*2+20,.1,HALF*2+20,gndM,BX,.0,BZ);slab.receiveShadow=true;slab.castShadow=false;world.add(slab);addWalk(BX,BZ,HALF*2+20,HALF*2+20,.08);
+    // street grid (causeway-style asphalt)
+    for(const off of[-80,0,80]){
+      world.add(box(HALF*2,.08,12,M.asphalt,BX,.08,BZ+off));laneDashes(BX,BZ+off,HALF*2,12,.16);
+      world.add(box(12,.08,HALF*2,M.asphalt,BX+off,.08,BZ));laneDashes(BX+off,BZ,12,HALF*2,.16);
+    }
+    // perimeter wall — gaps aligned with every road exit (stays open-world)
+    const wallM3=new THREE.MeshStandardMaterial({color:0x24211d,roughness:1});
+    const segs=[[-138.5,103],[-40,66],[40,66],[138.5,103]];
+    for(const[c,len] of segs){
+      world.add(wallB(len,10,3,BX+c,5,BZ-HALF,wallM3));world.add(wallB(len,10,3,BX+c,5,BZ+HALF,wallM3));
+      world.add(wallB(3,10,len,BX-HALF,5,BZ+c,wallM3));world.add(wallB(3,10,len,BX+HALF,5,BZ+c,wallM3));
+    }
+    // city blocks — ruined towers between the streets
+    for(const lx of[-135,-40,40,135])for(const lz of[-135,-40,40,135]){
+      const n=1+((rnd()<.4)?1:0);
+      for(let i=0;i<n;i++){
+        const w=rand(12,26),d=rand(12,26),h=rand(14,42);
+        ruinBuilding(BX+lx+rand(-8,8),BZ+lz+rand(-8,8),w,d,h,rnd()<.5);
+      }
+    }
+    // rubble, wrecks, barricades
+    for(let i=0;i<24;i++){const x=BX+rand(-160,160),z=BZ+rand(-160,160);if(Math.abs(x-BX)<14||Math.abs(z-BZ)<14)rubblePile(x,z,rand(1,2.6));else rubblePile(x+rand(-4,4),z,rand(1,3));}
+    for(let i=0;i<14;i++){const onX=rnd()<.5;const rd=pick([-80,0,80]);const x=onX?BX+rand(-160,160):BX+rd+rand(-3,3);const z=onX?BZ+rd+rand(-3,3):BZ+rand(-160,160);wreckedCar(x,z,rand(0,Math.PI*2),i<5);}
+    // central plaza — barricade ring for cover
+    world.add(box(42,.06,42,new THREE.MeshStandardMaterial({color:0x2b2925,roughness:.98}),BX,.12,BZ));
+    for(let a=0;a<8;a++){const an=a/8*Math.PI*2;barricade(BX+Math.cos(an)*14,BZ+Math.sin(an)*14,an+Math.PI/2);}
+    // burning-city glow + fire lights (kept few for perf)
+    for(const[gx,gy,gz,ci,r] of[[BX+150,10,BZ-160,1.6,220],[BX-160,8,BZ+130,1.2,180]]){
+      const gl=new THREE.PointLight(0xff5a1e,ci,r,1.8);gl.position.set(gx,gy,gz);scene.add(gl);blackoutFx.glows.push(gl);
+    }
+    // drifting ash
+    {const n=350,g=new THREE.BufferGeometry(),p=new Float32Array(n*3);
+    for(let i=0;i<n;i++){p[i*3]=BX+rand(-HALF,HALF);p[i*3+1]=rand(0,38);p[i*3+2]=BZ+rand(-HALF,HALF);blackoutFx.ashVel.push([rand(-.4,.4),-rand(.2,.7),rand(-.4,.4)]);}
+    g.setAttribute('position',new THREE.BufferAttribute(p,3));
+    blackoutFx.ash=new THREE.Points(g,new THREE.PointsMaterial({color:0x8a7f6c,size:.14,transparent:true,opacity:.6}));
+    scene.add(blackoutFx.ash);}
+    addLabel('BLACKOUT PROTOCOL — SECTOR 7',BX,34,BZ);markers.push({name:'Sector 7',x:BX,z:BZ});
+
+    // ── SECTOR 7 OVERPASS: Nuketown (isl7) → Sector 7 (isl8) ──
+    const conM4=new THREE.MeshStandardMaterial({color:0x9aa0a8,roughness:.85});
+    const bz2=-120,x0=-190,x1=-296,blen=Math.abs(x1-x0),bmx=(x0+x1)/2;
+    world.add(box(blen,.55,10,conM4,bmx,.75,bz2));addWalk(bmx,bz2,blen,10,1.03);
+    world.add(box(blen,.1,7,M.asphalt,bmx,1.06,bz2));
+    for(let x=x0-4;x>x1+3;x-=5)world.add(box(2.2,.04,.4,neon(0xffe45c,.6),x,1.13,bz2));
+    for(const s of[-1,1])world.add(box(blen,.9,.3,conM4,bmx,1.5,bz2+s*4.85));
+    for(let x=x0-8;x>x1+6;x-=12){world.add(box(1.6,2.2,1.6,conM4,x,0,bz2-4));world.add(box(1.6,2.2,1.6,conM4,x,0,bz2+4));}
+    for(const x of[x0-14,bmx,x1+14])for(const s of[-1,1]){world.add(box(.22,4.5,.22,M.metal,x,3.2,bz2+s*4.8));world.add(box(.5,.3,.5,neon(0xffd890,1.6),x,5.6,bz2+s*4.8));}
+    addLabel('Sector 7 Overpass',bmx,6,bz2);markers.push({name:'Sector 7 Overpass',x:bmx,z:bz2});
+  })();
+  // Same war-torn props reused across the other levels/districts
+  wreckedCar(14,168,.15,true);wreckedCar(-2,118,2.9,false);wreckedCar(96,150,1.4,false);      // Blackthorn streets
+  wreckedCar(302,-3,.1,false);wreckedCar(372,4,3.2,true);                                     // Neo Tokyo boulevard
+  wreckedCar(162,-6,1.6,false);                                                               // Harbor
+  wreckedCar(-124,-206,.4,false);wreckedCar(-116,-131,2.2,false);                             // Nuketown
+  wreckedCar(150,-162,.8,false);wreckedCar(60,278,2.4,false);                                 // Ice city + desert road
+  for(const[rx,rz,rs] of[[20,132,1.8],[-40,150,2.2],[70,144,1.4],[290,8,1.6],[340,-8,2],[150,3,1.5],[-110,-160,1.8],[175,290,2.2],[40,-30,1.3]])rubblePile(rx,rz,rs);
+  barricade(150,6,.4);barricade(163,12,1.9);barricade(6,130,.2);barricade(20,148,1.1);barricade(320,-4,2.6);barricade(-114,-160,.5);
+
   (()=>{
     mkBldg({name:'Market Hall',x:149,z:10,w:32,d:18,h:5.4,rot:.02,type:'guest'});
     mkBldg({name:'Harbor Inn',x:181,z:12,w:26,d:18,h:5.2,rot:-.03,type:'guest'});
@@ -2323,8 +2449,8 @@
   let waveStuckTimer=0; // seconds since last kill when hostiles remain — triggers teleport
   let lastKillT=0;
   // Endless mode: per-island kill counters + island detection
-  const islandPolys=[null,null,null,null,null,null,null,null]; // filled after island polys defined (0-7)
-  const endlessKills=[0,0,0,0,0,0,0,0],endlessWaveN=[1,1,1,1,1,1,1,1];
+  const islandPolys=[null,null,null,null,null,null,null,null,null]; // filled after island polys defined (0-8)
+  const endlessKills=[0,0,0,0,0,0,0,0,0],endlessWaveN=[1,1,1,1,1,1,1,1,1];
   let endlessSpawnTimer=0;
 
   function addScore(n){state.score+=n;document.getElementById('scoreVal').textContent=state.score.toLocaleString();}
@@ -2357,10 +2483,10 @@
   // Spawns are spread across ALL islands/districts, not just a ring around the player.
   // Near islands only until wave 6; all 5 open after that so the world feels alive
   // fill endless island poly refs now that all island polys exist
-  [isl0,isl1,isl2,isl3,isl4,isl5,isl6,isl7].forEach((p,i)=>islandPolys[i]=p);
+  [isl0,isl1,isl2,isl3,isl4,isl5,isl6,isl7,isl8].forEach((p,i)=>islandPolys[i]=p);
   function currentIsland(){for(let i=0;i<islandPolys.length;i++)if(polyInside(camera.position.x,camera.position.z,islandPolys[i]))return i;return-1;}
 
-  const SPAWN_ISLANDS=[isl0,isl1,isl2,isl3,isl4,isl5,isl6,isl7].map(poly=>{let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;poly.forEach(p=>{x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);z0=Math.min(z0,p[1]);z1=Math.max(z1,p[1]);});return{poly,x0,x1,z0,z1};});
+  const SPAWN_ISLANDS=[isl0,isl1,isl2,isl3,isl4,isl5,isl6,isl7,isl8].map(poly=>{let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;poly.forEach(p=>{x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);z0=Math.min(z0,p[1]);z1=Math.max(z1,p[1]);});return{poly,x0,x1,z0,z1};});
   function randSpawnPoint(){
     // Always ≥70 % near the player so golems are visible and fights feel immediate.
     // Far-island spawns open up after wave 5 for world-scale variety.
@@ -2678,9 +2804,12 @@
     state.started=true;updateVitals();updateWeaponHud();equipWeapon();
     bgm.play().catch(()=>{});
     lockPointer();
+    // BLACKOUT PROTOCOL level: deploy straight into Sector 7 with the full arsenal
+    if(window._level==='blackout'){camera.position.set(-480,2.4,110);yaw=0;pitch=0;showBanner('BLACKOUT PROTOCOL','SECTOR 7 — URBAN COMBAT ZONE',3200);}
     // Ammo crates — deferred here so EMOJI/dropPickup refs are fully initialized
     const _ammoPts=[[10,215],[135,305],[215,305],[220,305],[150,380], // pyramid island
-      [155,15],[190,-18],[310,0],[360,-20],[170,-90],[20,20]];       // other islands
+      [155,15],[190,-18],[310,0],[360,-20],[170,-90],[20,20],        // other islands
+      [-480,100],[-480,-40],[-400,-120],[-560,40]];                  // sector 7
     for(const[ax,az] of _ammoPts)dropPickup(ax,az,'ammo');
     if(state.endless){
       document.getElementById('waveVal').textContent='♾ ENDLESS';
@@ -2691,7 +2820,7 @@
     }
     // Apex golems guarding each island — placed at game start
     setTimeout(()=>{
-      const apexPosts=[[370,-20],[50,155],[175,310],[290,-190],[315,152],[-40,20],[180,-40],[-120,-200]];
+      const apexPosts=[[370,-20],[50,155],[175,310],[290,-190],[315,152],[-40,20],[180,-40],[-120,-200],[-480,-90]];
       for(const[ax,az] of apexPosts){const ag=makeGolem(ax,az,'boss');if(ag)ag.userData.hostile=true;}
     },1800);
     // activate mode chosen on home screen
@@ -2758,8 +2887,8 @@
       const feetY=camera.position.y-playerHeight;const floorY=surfaceY(camera.position.x,camera.position.z,feetY)+playerHeight;
       if(camera.position.y<=floorY+.05){camera.position.y=floorY;velocity.y=0;canJump=true;}
     }
-    // world bounds — generous box around ALL islands + sprawl (true open world, no invisible walls)
-    camera.position.x=TL.clamp(camera.position.x,-280,900);
+    // world bounds — generous box around ALL islands + sprawl + Sector 7 (true open world, no invisible walls)
+    camera.position.x=TL.clamp(camera.position.x,-700,900);
     camera.position.z=TL.clamp(camera.position.z,-330,520);
     // view bob + recoil
     // animate viewmodel bob + recoil
@@ -2789,7 +2918,7 @@
     // landmasses (clipped to the dish)
     mctx.save();mctx.beginPath();mctx.arc(cx,cy,R,0,7);mctx.clip();
     function poly(p,fill){mctx.beginPath();p.forEach((q,i)=>{const s=pt(q[0],q[1]);if(i===0)mctx.moveTo(s[0],s[1]);else mctx.lineTo(s[0],s[1]);});mctx.closePath();mctx.fillStyle=fill;mctx.fill();}
-    poly(isl0,'rgba(40,86,52,.55)');poly(isl1,'rgba(40,86,52,.55)');poly(isl2,'rgba(74,90,116,.55)');poly(isl3,'rgba(46,62,48,.55)');poly(isl4,'rgba(120,180,210,.5)');poly(isl5,'rgba(150,120,70,.5)');poly(isl6,'rgba(40,70,30,.55)');poly(isl7,'rgba(110,120,70,.55)');
+    poly(isl0,'rgba(40,86,52,.55)');poly(isl1,'rgba(40,86,52,.55)');poly(isl2,'rgba(74,90,116,.55)');poly(isl3,'rgba(46,62,48,.55)');poly(isl4,'rgba(120,180,210,.5)');poly(isl5,'rgba(150,120,70,.5)');poly(isl6,'rgba(40,70,30,.55)');poly(isl7,'rgba(110,120,70,.55)');poly(isl8,'rgba(70,60,48,.6)');
     // golem blips
     for(const g of golems){if(!g.userData.alive)continue;const s=pt(g.position.x,g.position.z);const dd=Math.hypot(s[0]-cx,s[1]-cy);if(dd>R)continue;mctx.fillStyle=g.userData.hostile?'#ff2d95':'#57ff87';const sz=g.userData.isBoss?5:2.6;mctx.beginPath();mctx.arc(s[0],s[1],sz,0,7);mctx.fill();if(g.userData.isBoss){mctx.strokeStyle='#ffe45c';mctx.lineWidth=1.5;mctx.beginPath();mctx.arc(s[0],s[1],sz+2.5,0,7);mctx.stroke();}}
     // sweep line
@@ -2812,7 +2941,9 @@
 
   // mode chosen on home screen before starting
   window._gameMode='free';
-  window.selectMode=function(m,btn){window._gameMode=m;document.querySelectorAll('.modeSelBtn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');};
+  window.selectMode=function(m,btn){window._gameMode=m;document.querySelectorAll('.modeSelBtn:not(.lvlBtn)').forEach(b=>b.classList.remove('active'));btn.classList.add('active');};
+  window._level='neon';
+  window.selectLevel=function(l,btn){window._level=l;document.querySelectorAll('.lvlBtn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');};
 
   function setMode(m){
     activeMode=m;
@@ -2840,6 +2971,8 @@
     [280,1.5,110],[320,1.5,155],[370,1.5,130],[310,1.5,200],[420,1.5,155],
     // isl7 (nuketown)
     [-150,1.5,-210],[-95,1.5,-135],[-120,1.5,-185],[-165,1.5,-155],[-70,1.5,-190],
+    // isl8 (sector 7)
+    [-480,1.5,-40],[-560,1.5,-120],[-400,1.5,40],[-560,1.5,40],[-400,1.5,-120],
   ];
   let starsCollected=0;
   const starMatG=neon(0xffe45c,3.2);
@@ -2887,7 +3020,7 @@
   function clearUfoAttack(){for(const u of assaultUFOs){scene.remove(u.mesh);}assaultUFOs.length=0;for(const p of ufoEProjs){scene.remove(p.mesh);}ufoEProjs.length=0;}
 
   function spawnUfoWave(){
-    ufoWave++;const spawnRing=[[0,1.5,0],[160,1.5,-30],[330,1.5,0],[10,1.5,150],[162,1.5,-168],[170,1.5,310],[315,1.5,155],[-120,1.5,-170]];const count=Math.max(spawnRing.length*2,3+ufoWave*3);ufoRemaining=count;
+    ufoWave++;const spawnRing=[[0,1.5,0],[160,1.5,-30],[330,1.5,0],[10,1.5,150],[162,1.5,-168],[170,1.5,310],[315,1.5,155],[-120,1.5,-170],[-480,1.5,-40]];const count=Math.max(spawnRing.length*2,3+ufoWave*3);ufoRemaining=count;
     for(let i=0;i<count;i++){
       const base=spawnRing[i%spawnRing.length];
       const ug=new THREE.Group();ug.position.set(base[0]+rand(-30,30),rand(22,45),base[2]+rand(-30,30));scene.add(ug);
@@ -2989,7 +3122,7 @@
       scopeEl.style.opacity=zooming?'1':'0';
       // 2X damage boost timer
       if(state.dmgMultTimer>0){state.dmgMultTimer-=dt;if(state.dmgMultTimer<=0){state.dmgMult=1;}updateBoostHud();}
-      updateGolems(dt);updateProjs(dt);updateEProjs(dt);updateBursts(dt);updatePickups(dt);updateLightnings(dt);updateFlames(dt);updateTimeOfDay(dt);updateCityTraffic(dt);updateCityPlanes(dt);
+      updateGolems(dt);updateProjs(dt);updateEProjs(dt);updateBursts(dt);updatePickups(dt);updateLightnings(dt);updateFlames(dt);updateTimeOfDay(dt);updateBlackoutAtmo(dt);updateCityTraffic(dt);updateCityPlanes(dt);
       if(activeMode==='starSearch')updateStarSearch(dt);
       if(activeMode==='ufoAttack')updateUfoAttack(dt);
       // wave spawning
