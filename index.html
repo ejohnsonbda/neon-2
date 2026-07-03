@@ -128,7 +128,7 @@
   <div class="card">
     <div class="tag">FPS · 10 ENEMY TYPES · 6 WEAPONS</div>
     <h2 class="orb">NEON CITY</h2>
-    <p>Stone golems have woken across the neon districts — grunts, runners, armored tanks, shade-casters hurling bolts, wyrms flying overhead, plant goblins, and wave bosses. Purge them all.</p>
+    <p>The <b>United Isles of Neon</b> — one nation, ten districts, linked by highway bridges from the gridded Capital to Neo Tokyo, Nuketown, Sector 7 and beyond. Stone golems have woken across the isles — purge them all.</p>
     <div class="ctrls">
       <div><b>WASD</b> — move / <b>Shift</b> sprint</div><div><b>Space</b> — jump · <b>double-tap</b> fly</div>
       <div><b>Left click</b> — fire</div><div><b>Right click</b> — zoom scope</div>
@@ -835,9 +835,20 @@
   function mkPath(pts,w=1.6,mat=M.asphalt){for(let i=0;i<pts.length-1;i++){const a=new THREE.Vector3(pts[i][0],.08,pts[i][1]),b=new THREE.Vector3(pts[i+1][0],.08,pts[i+1][1]);const mid=a.clone().add(b).multiplyScalar(.5);const len=a.distanceTo(b);const ang=Math.atan2(b.x-a.x,b.z-a.z);const p=box(w,.08,len,mat,mid.x,.09,mid.z);p.rotation.y=ang;p.receiveShadow=true;p.castShadow=false;world.add(p);
     for(const s of[-1,1]){const e=box(.2,.03,len,roadEdgeM,mid.x+Math.cos(ang)*s*(w/2-.16),.145,mid.z-Math.sin(ang)*s*(w/2-.16));e.rotation.y=ang;e.castShadow=false;world.add(e);}
     for(let t=2.2;t<len-2;t+=5.5){const k=t/len;const d=box(.32,.03,2.1,roadDashM,a.x+(b.x-a.x)*k,.15,a.z+(b.z-a.z)*k);d.rotation.y=ang;d.castShadow=false;world.add(d);}}}
-  mkPath([[-62,-26],[-48,-16],[-31,-11],[-10,-4],[12,-3],[38,-7],[60,-17]],2.2);
-  mkPath([[-19,-41],[-8,-12],[-3,28]],1.55);
-  mkPath([[60,-17],[74,-14]],2.35);mkPath([[86,-10],[114,-8]],2.35);
+  /* ── CAPITAL STREET GRID (orthogonal avenues, no winding paths) ── */
+  (()=>{
+    // E-W streets
+    world.add(box(79,.1,8,M.asphalt,-55.5,.06,0));laneDashes(-55.5,0,79,8,.13);   // Union St W
+    world.add(box(54,.1,8,M.asphalt,43,.06,0));laneDashes(43,0,54,8,.13);         // Union St E
+    world.add(box(165,.1,8,M.asphalt,-12.5,.06,-40));laneDashes(-12.5,-40,165,8,.13); // North Ave
+    world.add(box(165,.1,8,M.asphalt,-12.5,.06,40));laneDashes(-12.5,40,165,8,.13);   // South Ave
+    // N-S avenues
+    world.add(box(8,.1,98,M.asphalt,-40,.06,-3));laneDashes(-40,-3,8,98,.13);
+    world.add(box(8,.1,98,M.asphalt,40,.06,-3));laneDashes(40,-3,8,98,.13);
+    world.add(box(8,.1,30,M.asphalt,0,.06,31));laneDashes(0,31,8,30,.13);          // Capitol Ave S
+    world.add(box(8,.1,16,M.asphalt,-70,.06,-48));laneDashes(-70,-48,8,16,.13);    // causeway stub
+  })();
+  mkPath([[64,0],[72,-11]],2.35);mkPath([[86,-10],[114,-8]],2.35);
   mkPath([[114,-8],[151,-8],[192,-10]],2.25);
   mkPath([[246,-2],[300,-1],[356,0],[392,0],[430,0]],2.8,M.asphalt);
 
@@ -867,12 +878,51 @@
     g.add(box(w*.8,.12,.1,neon(pick(NEON),1.0),0,h-.5,-d/2-.2));
     addLabel(name,x,h+3.2,z);markers.push({name,x,z});return g;
   }
-  mkBldg({name:'Shrine Nave',x:-18,z:9,w:13,d:38,h:6.4,rot:-.08,type:'church'});
-  mkBldg({name:'Vestry',x:-39,z:2,w:12,d:13,h:4.5});
-  mkBldg({name:'Guest Rooms',x:30,z:3,w:31,d:20,h:5.2,type:'guest'});
-  mkBldg({name:'Dining Hall',x:15,z:-18,w:26,d:16,h:5.1,type:'guest'});
-  mkBldg({name:'Workshop',x:-19,z:-34,w:25,d:11,h:4.2});
-  mkBldg({name:'Caretaker',x:47,z:15,w:18,d:15,h:4.6,type:'guest'});
+  /* ── CAPITAL DISTRICT — civic buildings on a proper block grid ── */
+  mkBldg({name:'Shrine Nave',x:-60,z:20,w:13,d:30,h:6.4,type:'church'});
+  mkBldg({name:'Vestry',x:-80,z:20,w:12,d:13,h:4.5});
+  mkBldg({name:'Guest Rooms',x:20,z:20,w:31,d:20,h:5.2,type:'guest'});
+  mkBldg({name:'Dining Hall',x:-20,z:20,w:26,d:16,h:5.1,type:'guest'});
+  mkBldg({name:'Workshop',x:-60,z:-18,w:25,d:11,h:4.2});
+  mkBldg({name:'Caretaker',x:20,z:-18,w:18,d:15,h:4.6,type:'guest'});
+  mkBldg({name:'Ministry',x:58,z:20,w:20,d:16,h:5.6,type:'guest'});
+  mkBldg({name:'Archives',x:58,z:-18,w:20,d:14,h:5.0});
+  /* ── NATIONAL CAPITOL + UNION PLAZA (heart of the nation) ── */
+  (()=>{
+    // Union Plaza — paved civic square at the grid centre
+    world.add(box(30,.12,30,M.path,0,.07,0));addWalk(0,0,30,30,.15);
+    world.add(box(3,18,3,M.stone,0,9.15,0));                              // national monument
+    world.add(box(1.6,1.6,1.6,neon(0x19f5ff,2.2),0,18.9,0));
+    for(const[fx,fz,fc] of[[-13,-13,0xff2d95],[13,-13,0x19f5ff],[-13,13,0xffe45c],[13,13,0x57ff87]]){
+      world.add(cyl(.12,.16,9,8,M.metal,fx,4.5,fz));
+      world.add(box(2.4,1.5,.08,neon(fc,.9),fx+1.25,8,fz));
+    }
+    neoSign('UNITED ISLES OF NEON',0,7.5,-15.4,15,2.4,0x19f5ff,0);
+    addLabel('Union Plaza',0,22,0);markers.push({name:'Union Plaza',x:0,z:0});
+    // Capitol mall (pedestrian) from plaza to capitol steps
+    world.add(box(10,.1,8,M.path,0,.06,-19));addWalk(0,-19,10,8,.14);
+    // National Capitol
+    const CX2=0,CZ2=-28;
+    world.add(box(34,1.2,17,M.stone,CX2,.6,CZ2));addWalk(CX2,CZ2,34,17,1.3);
+    world.add(wallB(26,7,12,CX2,4.7,CZ2-1,M.stucco));
+    for(let i=0;i<7;i++)world.add(cyl(.55,.6,6.8,10,M.trim,CX2-9+i*3,4.6,CZ2+5.2));
+    world.add(box(28,1.1,14,M.trim,CX2,8.6,CZ2-1));
+    const dome=new THREE.Mesh(new THREE.SphereGeometry(5.4,18,12,0,Math.PI*2,0,Math.PI/2),M.trim);dome.position.set(CX2,9.1,CZ2-1);dome.castShadow=true;world.add(dome);
+    world.add(box(.8,3.4,.8,neon(0xffe45c,1.6),CX2,15.5,CZ2-1));
+    for(const s of[-1,1])world.add(wallB(8,5,7,CX2+s*17,3.1,CZ2-1,M.stucco));
+    addLabel('National Capitol',CX2,19,CZ2);markers.push({name:'National Capitol',x:CX2,z:CZ2});
+    // Gateway arches at the capital's three bridge exits
+    for(const[ax,az,horiz,nm] of[[66,-12,false,'ROUTE 1 EAST'],[8,47,true,'ROUTE 2 SOUTH'],[-70,-46,true,'ROUTE 3 NORTH']]){
+      const dx=horiz?5.5:0,dz=horiz?0:5.5;
+      world.add(box(1.2,7,1.2,M.stone,ax-dx,3.5,az-dz));world.add(box(1.2,7,1.2,M.stone,ax+dx,3.5,az+dz));
+      world.add(box(horiz?12.5:1.4,1.2,horiz?1.4:12.5,M.stone,ax,7.4,az));
+      world.add(box(horiz?11:.5,.3,horiz?.5:11,neon(0x19f5ff,1.6),ax,6.7,az));
+      addLabel(nm,ax,10,az);
+    }
+    // street trees along Union St + plaza corners
+    for(let x=-88;x<=66;x+=18){if(Math.abs(x)<22)continue;makeTree(x,-7,1.0);makeTree(x,7,1.0);}
+    for(const[tx,tz] of[[-19,-19],[19,-19],[-19,19],[19,19]])makeTree(tx,tz,1.15);
+  })();
 
   const cityTraffic=[],cityPlanes=[];
   /* ===== BLACKTHORN: Gothic Horror City (isl3 — expanded ×3) ===== */
@@ -1204,20 +1254,29 @@
 
     // ── STEAMPUNK BIPLANES (orbit BLACKTHORN — shoot them down for 2000 pts!) ──
     (()=>{
-      function mkPlane(){
+      function mkPlane(){ // national patrol HELICOPTER
         const pM=new THREE.MeshStandardMaterial({color:0x1a1e26,roughness:.6,metalness:.45,flatShading:true});
         const wM=new THREE.MeshStandardMaterial({color:0x2a2e3c,roughness:.7,metalness:.2,flatShading:true});
+        const glM=new THREE.MeshStandardMaterial({color:0x8fb8d8,roughness:.15,metalness:.2,transparent:true,opacity:.85});
         const g=new THREE.Group();
-        g.add(new THREE.Mesh(new THREE.BoxGeometry(2.2,1.6,10),pM));
-        const wL=new THREE.Mesh(new THREE.BoxGeometry(18,.4,3.5),wM);wL.position.set(0,-.3,.5);g.add(wL);
-        const wU=new THREE.Mesh(new THREE.BoxGeometry(14,.3,3),wM);wU.position.set(0,1.9,.5);g.add(wU);
-        const tl=new THREE.Mesh(new THREE.BoxGeometry(7,.25,2.4),wM);tl.position.set(0,.2,4.2);g.add(tl);
-        const rd=new THREE.Mesh(new THREE.BoxGeometry(.3,2.4,2.4),wM);rd.position.set(0,1.5,4.2);g.add(rd);
-        const pg=new THREE.Group();pg.position.set(0,.1,-5.2);
-        pg.add(new THREE.Mesh(new THREE.BoxGeometry(5.5,.3,.3),neon(0xff4400,2.2)));
-        pg.add(new THREE.Mesh(new THREE.BoxGeometry(.3,5.5,.3),neon(0xff4400,2.2)));
+        const cab=new THREE.Mesh(new THREE.BoxGeometry(2.4,2.4,5),pM);cab.position.set(0,0,-1);g.add(cab);
+        const nose=new THREE.Mesh(new THREE.BoxGeometry(2,1.6,1.4),glM);nose.position.set(0,.2,-3.9);g.add(nose);
+        const boom=new THREE.Mesh(new THREE.BoxGeometry(.7,.7,6),wM);boom.position.set(0,.4,4.2);g.add(boom);
+        const fin=new THREE.Mesh(new THREE.BoxGeometry(.25,1.8,1.1),wM);fin.position.set(0,1.2,7);g.add(fin);
+        for(const s of[-1,1]){
+          const skid=new THREE.Mesh(new THREE.BoxGeometry(.22,.22,4.6),wM);skid.position.set(s*1.2,-1.75,-.8);g.add(skid);
+          const st1=new THREE.Mesh(new THREE.BoxGeometry(.16,.9,.16),wM);st1.position.set(s*1.2,-1.35,-2.2);g.add(st1);
+          const st2=st1.clone();st2.position.z=.6;g.add(st2);
+        }
+        const pg=new THREE.Group();pg.position.set(0,1.55,-1);
+        pg.add(new THREE.Mesh(new THREE.BoxGeometry(12,.08,.55),neon(0xff4400,1.4)));
+        pg.add(new THREE.Mesh(new THREE.BoxGeometry(.55,.08,12),neon(0xff4400,1.4)));
+        const hub=new THREE.Mesh(new THREE.CylinderGeometry(.3,.3,.5,8),wM);pg.add(hub);
         g.add(pg);
-        g.userData.bodyMats=[pM,wM];
+        const tr=new THREE.Group();tr.position.set(.44,1.2,7);
+        tr.add(new THREE.Mesh(new THREE.BoxGeometry(.08,2.4,.3),neon(0xff8800,1.4)));
+        g.add(tr);
+        g.userData.bodyMats=[pM,wM];g.userData.tail=tr;
         g.castShadow=true;
         return{mesh:g,prop:pg};
       }
@@ -1304,7 +1363,7 @@
   function damagePlane(pl,dmg){
     if(!pl.alive||pl.falling)return;
     pl.hp-=dmg;pl.flash=.22;
-    if(pl.hp<=0){pl.falling=true;pl.fallVx=rand(-14,14);pl.fallVz=rand(-14,14);const pts=pl.isUFO?10000:2000;showBanner(pl.isUFO?'UFO DESTROYED!':'AIRCRAFT DOWNED','+'+pts+' PTS',2400);addScore(pts);sfx('blast');}
+    if(pl.hp<=0){pl.falling=true;pl.fallVx=rand(-14,14);pl.fallVz=rand(-14,14);const pts=pl.isUFO?10000:2000;showBanner(pl.isUFO?'UFO DESTROYED!':'HELICOPTER DOWNED','+'+pts+' PTS',2400);addScore(pts);sfx('blast');}
   }
   function updateCityPlanes(dt){
     for(let i=cityPlanes.length-1;i>=0;i--){
@@ -1321,7 +1380,7 @@
       pl.mesh.position.z=pl.cz+Math.sin(pl.angle)*pl.radius;
       pl.mesh.position.y=pl.altitude+Math.sin(pl.angle*2)*2.5;
       if(pl.isUFO){pl.mesh.rotation.y+=dt*.4;pl.prop.rotation.z+=dt*1.2;}
-      else{pl.mesh.rotation.y=Math.atan2(-Math.sin(pl.angle),Math.cos(pl.angle))+Math.PI/2;pl.prop.rotation.z+=dt*16;}
+      else{pl.mesh.rotation.y=Math.atan2(-Math.sin(pl.angle),Math.cos(pl.angle))+Math.PI/2;pl.prop.rotation.y+=dt*22;const tr=pl.mesh.userData.tail;if(tr)tr.rotation.x+=dt*30;}
       if(pl.flash>0){pl.flash=Math.max(0,pl.flash-dt);for(const m of pl.mesh.userData.bodyMats){m.emissive.setHex(0xee3300);m.emissiveIntensity=pl.flash*5;}}
       else if(pl.mesh.userData.bodyMats[0].emissiveIntensity>0){for(const m of pl.mesh.userData.bodyMats){m.emissive.setHex(0);m.emissiveIntensity=0;}}
     }
@@ -1531,7 +1590,7 @@
 
   })();
 
-  (()=>{const g=new THREE.Group();g.position.set(0,0,18);world.add(g);const lh=6,lv=5;g.add(box(8.5,.35,8.5,M.stone,0,.18,0));for(let l=0;l<lv;l++){const y=.35+l*lh;g.add(wallB(8.5,lh,.36,0,y+lh/2,-4.25,M.stucco));g.add(wallB(.36,lh,8.5,-4.25,y+lh/2,0,M.stucco));g.add(wallB(.36,lh,8.5,4.25,y+lh/2,0,M.stucco));}g.add(box(9.5,2.2,9.5,M.darkWood,0,lv*lh+1.5,0));const sp=new THREE.Mesh(new THREE.ConeGeometry(5.6,13,6),M.roofS);sp.position.set(0,lv*lh+9,0);sp.castShadow=true;g.add(sp);addLabel('Bell Tower',0,39,18);markers.push({name:'Bell Tower',x:0,z:18});})();
+  (()=>{const g=new THREE.Group();g.position.set(-80,0,-20);world.add(g);const lh=6,lv=5;g.add(box(8.5,.35,8.5,M.stone,0,.18,0));for(let l=0;l<lv;l++){const y=.35+l*lh;g.add(wallB(8.5,lh,.36,0,y+lh/2,-4.25,M.stucco));g.add(wallB(.36,lh,8.5,-4.25,y+lh/2,0,M.stucco));g.add(wallB(.36,lh,8.5,4.25,y+lh/2,0,M.stucco));}g.add(box(9.5,2.2,9.5,M.darkWood,0,lv*lh+1.5,0));const sp=new THREE.Mesh(new THREE.ConeGeometry(5.6,13,6),M.roofS);sp.position.set(0,lv*lh+9,0);sp.castShadow=true;g.add(sp);addLabel('Bell Tower',-80,39,-20);markers.push({name:'Bell Tower',x:-80,z:-20});})();
 
   // ── BRIDGE: BLACKTHORN (isl3 east) → JUNGLE FORTRESS (isl6 west) ──
   (()=>{
@@ -1980,6 +2039,10 @@
     const pl=box(34,.18,22,M.path,155,.1,9);pl.receiveShadow=true;pl.castShadow=false;world.add(pl);addWalk(155,9,34,22,.2);
     const fn=new THREE.Group();fn.position.set(156,0,9);world.add(fn);fn.add(cyl(2.4,2.4,.45,36,M.stone,0,.23,0));fn.add(cyl(1,.75,1.4,24,M.stone,0,.95,0));
     addLabel('Harbor Plaza',156,5.2,9);markers.push({name:'Harbor Plaza',x:156,z:9});
+    // harbor street grid (nation standard)
+    world.add(box(8,.1,100,M.asphalt,124,.06,-5));laneDashes(124,-5,8,100,.13);
+    world.add(box(8,.1,100,M.asphalt,210,.06,-5));laneDashes(210,-5,8,100,.13);
+    world.add(box(120,.1,8,M.asphalt,167,.06,-4));laneDashes(167,-4,120,8,.13);
   })();
 
   function neoSign(txt,x,y,z,w=5,h=1.3,col=0xff2bd6,rot=0){
@@ -2071,8 +2134,9 @@
 
   /* ============================= TREES / LAMPS ============================= */
   function makeTree(x,z,s=1){const g=new THREE.Group();g.position.set(x,0,z);g.scale.setScalar(s);world.add(g);g.add(cyl(.28,.42,2.5,8,new THREE.MeshStandardMaterial({color:0x4a3222,roughness:.9}),0,1.25,0));const lm=new THREE.MeshStandardMaterial({color:new THREE.Color().setHSL(rand(.28,.4),.5,rand(.28,.4)),roughness:.9});for(let i=0;i<Math.floor(rand(3,5));i++){const cr=new THREE.Mesh(new THREE.IcosahedronGeometry(rand(1.2,2),1),lm);cr.position.set(rand(-.8,.8),rand(2.4,4.2),rand(-.8,.8));cr.scale.set(rand(.8,1.4),rand(.7,1.25),rand(.8,1.4));cr.castShadow=true;g.add(cr);}}
-  const noTr=[[-18,9,18,44],[-39,2,15,17],[30,3,35,24],[15,-18,31,20],[-19,-34,29,15],[47,15,22,19],[8,7,24,24],[0,18,15,15]];
-  for(let i=0;i<50;i++){let x,z,t=0;do{x=rand(-68,68);z=rand(-42,38);t++;}while((!polyInside(x,z,isl0)||noTr.some(n=>Math.abs(x-n[0])<n[2]/2&&Math.abs(z-n[1])<n[3]/2))&&t<50);if(t<50)makeTree(x,z,rand(.65,1.4));}
+  // capital trees are planted on the street grid (see Capital District block) —
+  // a few extra groves on the outer lawns only
+  for(const[gx,gz] of[[-88,-28],[-90,10],[64,32],[-56,-50],[30,-52],[58,44]])if(polyInside(gx,gz,isl0))makeTree(gx,gz,rand(.9,1.3));
   function addLamp(x,z){const g=new THREE.Group();g.position.set(x,0,z);world.add(g);g.add(cyl(.08,.1,2.5,8,M.darkWood,0,1.25,0));const orb=new THREE.Mesh(new THREE.SphereGeometry(.3,12,8),M.lantern);orb.position.y=2.65;g.add(orb);}
   [[-32,-10],[8,6],[28,-8],[58,-18],[-18,29],[156,9]].forEach(p=>addLamp(p[0],p[1]));
 
@@ -2582,6 +2646,10 @@
   gunGroup.add(muzzleFlashMesh);
   const muzzleLight=new THREE.PointLight(0xffffff,0,6);
   gunGroup.add(muzzleLight);
+  // viewmodel fill light — brings out the weapon textures, tinted per weapon
+  const gunLight=new THREE.PointLight(0xffffff,.75,3.4,2);
+  gunLight.position.set(.15,.14,-.22);
+  gunGroup.add(gunLight);
 
   function equipWeapon(){
     fpCharge=0;
@@ -2599,6 +2667,7 @@
     const mdl=gunModels[key];
     if(mdl&&mdl.userData.muzzle){muzzleFlashMesh.position.copy(mdl.userData.muzzle);muzzleLight.position.copy(mdl.userData.muzzle);}
     muzzleLight.color.setHex(w.color);
+    gunLight.color.setHex(w.color).lerp(new THREE.Color(0xffffff),.6);
     if(w.name==='FORCE PUSH')fpEl.style.display='block';
     gR=gunModels[key]||null;gL=(dualWield&&w.dualable)?gunModels[key+'2']||null:null;
     updateWeaponHud();
