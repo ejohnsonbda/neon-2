@@ -237,21 +237,181 @@
   const pick=a=>a[Math.floor(rnd()*a.length)];
 
   /* ============================= TEXTURES ============================= */
-  function mkTex(type,base,sz=128){
+  /* ============================= TEXTURE BAKERY =============================
+     Procedural patterns ported from boytchev/tsl-textures (MIT) to canvas bakes:
+     processed-wood (stretched grain noise × fine cross-noise, smoothstepped),
+     concrete (|noise|^density mottle), rust (threshold noise patches), plus
+     fBm-based planks, sand dunes, snow, brushed metal and polymer weave. */
+  function _vnoise(sz,cells,seed){ // seamless tiling value noise
+    const n=Math.max(2,cells|0),g=new Float32Array(n*n);
+    let s=(seed>>>0)||1;const rr=()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296;};
+    for(let i=0;i<n*n;i++)g[i]=rr();
+    const step=sz/n;
+    return(x,y)=>{
+      const gx=x/step,gy=y/step;let x0=Math.floor(gx),y0=Math.floor(gy);
+      const fx=gx-x0,fy=gy-y0,u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy);
+      x0%=n;y0%=n;const x1=(x0+1)%n,y1=(y0+1)%n;
+      return g[y0*n+x0]*(1-u)*(1-v)+g[y0*n+x1]*u*(1-v)+g[y1*n+x0]*(1-u)*v+g[y1*n+x1]*u*v;
+    };
+  }
+  function _fbm(sz,seed,oct=4,cells=4){
+    const L=[];let amp=1,c=cells,tot=0;
+    for(let o=0;o<oct;o++){L.push([_vnoise(sz,c,seed+o*7919),amp]);tot+=amp;amp*=.55;c=Math.min(sz/2,c*2);}
+    return(x,y)=>{let v=0;for(const[f,a] of L)v+=f(x,y)*a;return v/tot;};
+  }
+  const _sstep=(a,b,x)=>{const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-2*t);};
+  function mkTex(type,base,sz=256){
     const cv=document.createElement('canvas');cv.width=cv.height=sz;const g=cv.getContext('2d');
-    g.fillStyle='#'+base.toString(16).padStart(6,'0');g.fillRect(0,0,sz,sz);
-    if(type==='grass'){for(let i=0;i<800;i++){const v=Math.floor(rand(0,30));g.fillStyle=`rgba(${50+v},${95+v},${55+v},${rand(.12,.32)})`;g.fillRect(rand(0,sz),rand(0,sz),rand(.6,2.2),rand(.6,2.2));}}
-    if(type==='stucco'){for(let i=0;i<400;i++){const v=Math.floor(rand(70,130));g.fillStyle=`rgba(${v},${v+8},${v+26},${rand(.1,.24)})`;g.fillRect(rand(0,sz),rand(0,sz),rand(.5,2.5),rand(.5,2.5));}g.strokeStyle='rgba(100,130,180,.18)';for(let y=0;y<sz;y+=16){g.beginPath();g.moveTo(0,y);g.lineTo(sz,y);g.stroke();}}
-    if(type==='roof'){for(let y=0;y<sz;y+=18){for(let x=(y/18%2)*12;x<sz;x+=24){g.strokeStyle='rgba(200,100,255,.12)';g.strokeRect(x,y,24,18);}}}
-    if(type==='wood'){for(let x=0;x<sz;x+=8){g.fillStyle=x%16===0?'rgba(255,200,150,.08)':'rgba(0,0,0,.12)';g.fillRect(x,0,4,sz);}}
-    if(type==='stone'){g.strokeStyle='rgba(0,0,0,.2)';for(let y=0;y<sz;y+=18){for(let x=(y/18%2)*14;x<sz;x+=28){g.strokeRect(x,y,28,18);}}for(let i=0;i<180;i++){g.fillStyle=`rgba(160,220,255,${rand(.02,.06)})`;g.fillRect(rand(0,sz),rand(0,sz),rand(1,4),rand(1,4));}}
-    if(type==='path'){g.strokeStyle='rgba(160,180,220,.12)';for(let y=0;y<sz;y+=13){g.beginPath();g.moveTo(0,y);g.lineTo(sz,y+rand(-3,3));g.stroke();}}
-    if(type==='asphalt'){for(let i=0;i<1200;i++){const v=Math.floor(rand(20,62));g.fillStyle=`rgba(${v},${v},${v+8},${rand(.1,.4)})`;g.fillRect(rand(0,sz),rand(0,sz),rand(.6,2),rand(.6,2));}}
-    if(type==='brick'){g.fillStyle='#3d2018';g.fillRect(0,0,sz,sz);for(let y=0;y<sz;y+=18){const off=(Math.floor(y/18)%2)*26;for(let x=-26+off;x<sz+26;x+=52){const bv=90+Math.floor(rand(0,40));g.fillStyle=`rgb(${bv+Math.floor(rand(-12,12))},${Math.floor(bv*.38+rand(-4,4))},${Math.floor(bv*.25+rand(-3,3))})`;g.fillRect(x+1,y+2,50,14);}g.strokeStyle='rgba(18,8,4,.7)';g.lineWidth=1.2;g.beginPath();g.moveTo(0,y);g.lineTo(sz,y);g.stroke();}for(let i=0;i<50;i++){g.fillStyle=`rgba(${Math.floor(rand(20,50))},${Math.floor(rand(6,16))},${Math.floor(rand(3,10))},.28)`;g.fillRect(rand(0,sz),rand(0,sz),rand(4,22),rand(2,6));}}
+    const img=g.createImageData(sz,sz),d=img.data;
+    const B=[(base>>16)&255,(base>>8)&255,base&255];
+    const px=(i,r,gg,b)=>{d[i]=r;d[i+1]=gg;d[i+2]=b;d[i+3]=255;};
+    const hash=q=>{const s2=Math.sin(q*127.1)*43758.5;return s2-Math.floor(s2);};
+    if(type==='grass'||type==='grassG'){
+      const n1=_fbm(sz,7,4,4),n2=_fbm(sz,131,2,32);
+      for(let y=0;y<sz;y++)for(let x=0;x<sz;x++){const i=(y*sz+x)*4;
+        const v=.6+(n1(x,y)-.5)*1.1-(n2(x,y)-.5)*.5+(Math.random()<.05?Math.random()*.22:0);
+        if(type==='grassG'){const q=168+96*(v-.6);px(i,q,q,q);}
+        else px(i,B[0]*(.5+v*.7),B[1]*(.55+v*.62),B[2]*(.45+v*.7));
+      }
+    }
+    else if(type==='stucco'){
+      const n1=_fbm(sz,23,5,6);
+      for(let y=0;y<sz;y++)for(let x=0;x<sz;x++){const i=(y*sz+x)*4;
+        const v=.78+(n1(x,y)-.5)*.5+(Math.random()-.5)*.09;
+        px(i,B[0]*v,B[1]*v,B[2]*v);
+      }
+    }
+    else if(type==='roof'){
+      const n1=_fbm(sz,41,3,8),TH=32,TW=42;
+      for(let y=0;y<sz;y++)for(let x=0;x<sz;x++){const i=(y*sz+x)*4;
+        const row=Math.floor(y/TH),off=(row%2)*(TW/2),tile=Math.floor((x+off)/TW);
+        const yr=(y%TH)/TH;
+        let v=.8+ (hash(row*57+tile)-.5)*.3 + (n1(x,y)-.5)*.2;
+        v*=(yr>.86?.55:1)*(yr<.08?1.14:1); // shadowed lower lip, lit crown
+        px(i,B[0]*v,B[1]*v,B[2]*v);
+      }
+    }
+    else if(type==='wood'||type==='woodG'){
+      // tsl-textures "processed wood": long stretched grain × fine cross noise
+      const n1=_fbm(sz,11,4,3),n2=_fbm(sz,77,3,24),PW=42;
+      for(let y=0;y<sz;y++)for(let x=0;x<sz;x++){const i=(y*sz+x)*4;
+        const pk=Math.floor(x/PW),gap=(x%PW)<1.6;
+        let k=n1((x*6)%sz,y*.5%sz)*.75+n2(x,y)*.25; // grain stretched along y
+        k=_sstep(.25,.75,k);
+        let v=.62+k*.4+(hash(pk*91)-.5)*.2;
+        if(gap)v*=.5;
+        if(type==='woodG'){const q=205*Math.min(1.15,v);px(i,q,q,q);}
+        else px(i,Math.min(255,B[0]*v*1.35),B[1]*v*1.18,B[2]*v);
+      }
+    }
+    else if(type==='whiteG'){
+      const n1=_fbm(sz,55,3,3),PW=36;
+      for(let y=0;y<sz;y++)for(let x=0;x<sz;x++){const i=(y*sz+x)*4;
+        const pk=Math.floor(x/PW),gap=(x%PW)<1.4;
+        let q=233+(n1((x*5)%sz,y*.6%sz)-.5)*17+(hash(pk*17)-.5)*11;
+        if(gap)q-=32;
+        px(i,q,q,q-3);
+      }
+    }
+    else if(type==='stone'){
+      const n1=_fbm(sz,67,4,8),BH=26,BW=40;
+      for(let y=0;y<sz;y++)for(let x=0;x<sz;x++){const i=(y*sz+x)*4;
+        const row=Math.floor(y/BH),off=(row%2)*(BW/2),col=Math.floor((x+off)/BW);
+        const bx=(x+off)%BW,by=y%BH;
+        let v=.82+(hash(row*131+col*7)-.5)*.3+(n1(x,y)-.5)*.25;
+        if(bx<2||by<2)v*=.55;                 // mortar
+        else if(bx<4||by<4)v*=1.12;           // bevel highlight
+        px(i,B[0]*v,B[1]*v,B[2]*v);
+      }
+    }
+    else if(type==='path'){
+      const n1=_fbm(sz,83,4,10),PH=22,PW2=46;
+      for(let y=0;y<sz;y++)for(let x=0;x<sz;x++){const i=(y*sz+x)*4;
+        const row=Math.floor(y/PH),off=(row%2)*(PW2/2);
+        const bx=(x+off)%PW2,by=y%PH;
+        let v=.85+(hash(row*37+Math.floor((x+off)/PW2)*11)-.5)*.24+(n1(x,y)-.5)*.2;
+        if(bx<2.5||by<2.5)v*=.6;
+        px(i,B[0]*v,B[1]*v,B[2]*v);
+      }
+    }
+    else if(type==='asphalt'){
+      const n1=_fbm(sz,97,5,6);
+      for(let y=0;y<sz;y++)for(let x=0;x<sz;x++){const i=(y*sz+x)*4;
+        let v=.8+(n1(x,y)-.5)*.55+(Math.random()-.5)*.3;
+        if(Math.random()<.012)v+=.55; // aggregate glint
+        px(i,B[0]*v,B[1]*v,(B[2]+6)*v);
+      }
+    }
+    else if(type==='brick'){
+      const n1=_fbm(sz,29,3,10),BH=18,BW=52;
+      for(let y=0;y<sz;y++)for(let x=0;x<sz;x++){const i=(y*sz+x)*4;
+        const row=Math.floor(y/BH),off=(row%2)*(BW/2),col=Math.floor((x+off)/BW);
+        const bx=(x+off)%BW,by=y%BH;
+        const bv=(hash(row*17+col*53)-.5)*.42;
+        let r=118*(1+bv),gg=48*(1+bv),b=32*(1+bv);
+        const m=(n1(x,y)-.5)*.3;r*=1+m;gg*=1+m;b*=1+m;
+        if(bx<2||by<3){r=34;gg=22;b=16;}       // mortar
+        else if(by<5){r*=1.15;gg*=1.15;b*=1.15;} // top light
+        px(i,r,gg,b);
+      }
+    }
+    else if(type==='sand'){
+      const n1=_fbm(sz,113,4,5),n2=_fbm(sz,171,2,20);
+      for(let y=0;y<sz;y++)for(let x=0;x<sz;x++){const i=(y*sz+x)*4;
+        const rip=.5+.5*Math.sin(y*.14+n1(x,y)*9);
+        const q=196+38*(rip-.5)*2+(n2(x,y)-.5)*22+(Math.random()-.5)*8;
+        px(i,q,q*.985,q*.94);
+      }
+    }
+    else if(type==='snow'){
+      const n1=_fbm(sz,151,4,4);
+      for(let y=0;y<sz;y++)for(let x=0;x<sz;x++){const i=(y*sz+x)*4;
+        let q=228+(n1(x,y)-.5)*26;
+        if(Math.random()<.006)q=255;  // sparkle
+        px(i,q*.97,q*.99,Math.min(255,q*1.03));
+      }
+    }
+    else if(type==='concrete'){
+      // tsl-textures concrete: |noise|^density pore field
+      const n1=_fbm(sz,191,5,5),n2=_fbm(sz,213,2,3);
+      for(let y=0;y<sz;y++)for(let x=0;x<sz;x++){const i=(y*sz+x)*4;
+        const pore=Math.pow(Math.abs(n1(x,y)-.5)*2,.6);
+        let q=206*(.86+ .3*pore -(n2(x,y)-.5)*.22);
+        if(Math.random()<.02)q-=36;
+        px(i,q,q,q);
+      }
+    }
+    else if(type==='rust'){
+      // tsl-textures rust: noise threshold blends metal → oxide
+      const n1=_fbm(sz,229,4,5),n2=_fbm(sz,251,3,16);
+      for(let y=0;y<sz;y++)for(let x=0;x<sz;x++){const i=(y*sz+x)*4;
+        const r1=n1(x,(y*.5)%sz),k=_sstep(.45,.72,r1+(n2(x,y)-.5)*.25);
+        const mv=.9+(n2(x,y)-.5)*.3;
+        px(i,104*mv*(1-k)+158*k*(.8+n2(x,y)*.5),106*mv*(1-k)+74*k,112*mv*(1-k)+36*k);
+      }
+    }
+    else if(type==='brushed'){
+      const n1=_fbm(sz,7,3,3);
+      for(let y=0;y<sz;y++)for(let x=0;x<sz;x++){const i=(y*sz+x)*4;
+        const q=178+(n1((x*.5)%sz,(y*7)%sz)-.5)*64+(Math.random()-.5)*10;
+        px(i,q,q,q+4);
+      }
+    }
+    else if(type==='poly'){
+      const n1=_fbm(sz,89,2,48);
+      for(let y=0;y<sz;y++)for(let x=0;x<sz;x++){const i=(y*sz+x)*4;
+        const q=182+(n1(x,y)-.5)*34+(((x+y)%4<2)?-6:6);
+        px(i,q,q,q);
+      }
+    }
+    else{for(let i=0;i<d.length;i+=4)px(i,B[0],B[1],B[2]);}
+    g.putImageData(img,0,0);
     const tex=new THREE.CanvasTexture(cv);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.anisotropy=renderer.capabilities.getMaxAnisotropy();return tex;
   }
-  const TX={grass:mkTex('grass',COLORS.grass),stucco:mkTex('stucco',COLORS.stucco),roof:mkTex('roof',COLORS.roof),wood:mkTex('wood',COLORS.wood),stone:mkTex('stone',COLORS.stone),path:mkTex('path',COLORS.path),asphalt:mkTex('asphalt',0x1a1f29),brick:mkTex('brick',0x3d2018,256)};
+  const TX={grass:mkTex('grass',COLORS.grass),stucco:mkTex('stucco',COLORS.stucco),roof:mkTex('roof',COLORS.roof),wood:mkTex('wood',COLORS.wood),stone:mkTex('stone',COLORS.stone),path:mkTex('path',COLORS.path),asphalt:mkTex('asphalt',0x1a1f29),brick:mkTex('brick',0x3d2018),
+    sand:mkTex('sand',0),snow:mkTex('snow',0),concrete:mkTex('concrete',0),grassG:mkTex('grassG',0),woodG:mkTex('woodG',0),whiteG:mkTex('whiteG',0),rust:mkTex('rust',0),brushed:mkTex('brushed',0),poly:mkTex('poly',0)};
   TX.grass.repeat.set(12,12);TX.stucco.repeat.set(2,2);TX.roof.repeat.set(2,5);TX.wood.repeat.set(3,3);TX.stone.repeat.set(4,4);TX.path.repeat.set(3,1);TX.asphalt.repeat.set(8,8);TX.brick.repeat.set(4,6);
+  TX.sand.repeat.set(8,8);TX.snow.repeat.set(9,9);TX.concrete.repeat.set(3,3);TX.grassG.repeat.set(10,10);TX.woodG.repeat.set(2,2);TX.whiteG.repeat.set(1.5,1.5);TX.rust.repeat.set(1.5,1.5);TX.brushed.repeat.set(2,2);TX.poly.repeat.set(2,2);
 
   const M={
     grass:new THREE.MeshStandardMaterial({map:TX.grass,roughness:.95}),
@@ -260,13 +420,13 @@
     roof:new THREE.MeshStandardMaterial({map:TX.roof,roughness:.8,transparent:true,opacity:.78}),
     roofS:new THREE.MeshStandardMaterial({map:TX.roof,roughness:.8}),
     wood:new THREE.MeshStandardMaterial({map:TX.wood,roughness:.76}),
-    darkWood:new THREE.MeshStandardMaterial({color:COLORS.darkWood,roughness:.84}),
+    darkWood:new THREE.MeshStandardMaterial({map:TX.woodG,color:COLORS.darkWood,roughness:.84}),
     path:new THREE.MeshStandardMaterial({map:TX.path,roughness:.95}),
     asphalt:new THREE.MeshStandardMaterial({map:TX.asphalt,roughness:.9}),
-    sand:new THREE.MeshStandardMaterial({color:COLORS.sand,roughness:.96}),
-    rock:new THREE.MeshStandardMaterial({color:COLORS.rock,roughness:.95}),
-    trim:new THREE.MeshStandardMaterial({color:COLORS.trim,roughness:.8}),
-    metal:new THREE.MeshStandardMaterial({color:COLORS.metal,roughness:.5,metalness:.35}),
+    sand:new THREE.MeshStandardMaterial({map:TX.sand,color:COLORS.sand,roughness:.96}),
+    rock:new THREE.MeshStandardMaterial({map:TX.concrete,color:COLORS.rock,roughness:.95}),
+    trim:new THREE.MeshStandardMaterial({map:TX.whiteG,color:COLORS.trim,roughness:.8}),
+    metal:new THREE.MeshStandardMaterial({map:TX.brushed,color:COLORS.metal,roughness:.5,metalness:.35}),
     glass:new THREE.MeshStandardMaterial({color:COLORS.glass,roughness:.12,metalness:.1,transparent:true,opacity:.34}),
     water:new THREE.MeshPhysicalMaterial({color:COLORS.water,roughness:.16,transparent:true,opacity:.82,metalness:0,clearcoat:.5}),
     lantern:new THREE.MeshStandardMaterial({color:COLORS.lantern,emissive:COLORS.lantern,emissiveIntensity:1.35,roughness:.35})
@@ -387,29 +547,29 @@
   makeIsland(isl2,new THREE.MeshStandardMaterial({map:TX.grass,color:0x8898a0,roughness:.92}));
   // isl3: BLACKTHORN — gothic horror city island
   const isl3=[[-182,111],[-140,77],[-62,72],[11,72],[88,72],[158,80],[165,105],[165,139],[165,175],[165,204],[92,204],[8,204],[-42,204],[-108,204],[-160,181],[-185,147]];
-  makeIsland(isl3,new THREE.MeshStandardMaterial({color:0x252a27,roughness:.97,metalness:.01}));
+  makeIsland(isl3,new THREE.MeshStandardMaterial({map:TX.grassG,color:0x252a27,roughness:.97,metalness:.01}));
   // isl4: massive frozen island to the north (ice castle)
   const isl4=[[24,-142],[64,-219],[131,-271],[209,-274],[271,-232],[299,-167],[288,-128],[234,-128],[159,-128],[86,-128],[38,-128]];
-  const iceGround=new THREE.MeshStandardMaterial({color:0xcfeeff,roughness:.32,metalness:.06,emissive:0x16384a,emissiveIntensity:.12});
+  const iceGround=new THREE.MeshStandardMaterial({map:TX.snow,color:0xcfeeff,roughness:.32,metalness:.06,emissive:0x16384a,emissiveIntensity:.12});
   makeIsland(isl4,iceGround);
 
   // isl5: PYRAMID ISLAND — massive desert island south of the graveyard (isl3), always daytime
   const isl5=[[-93,234],[2,234],[121,234],[240,258],[268,268],[374,286],[430,296],[415,344],[373,400],[299,438],[191,452],[83,444],[-1,416],[-57,374],[-85,309],[-89,260]];
-  const desertGround=new THREE.MeshStandardMaterial({color:0xb8935a,roughness:.96,metalness:.01});
+  const desertGround=new THREE.MeshStandardMaterial({map:TX.sand,color:0xb8935a,roughness:.96,metalness:.01});
   makeIsland(isl5,desertGround);
   // isl6: JUNGLE FORTRESS — expanded ancient prison island
   const isl6=[[214,108],[254,92],[302,88],[364,92],[420,104],[456,122],[464,155],[452,198],[420,228],[370,252],[308,258],[252,248],[216,226],[196,196],[188,160],[196,128]];
-  const jungleGnd=new THREE.MeshStandardMaterial({color:0x162210,roughness:.99,metalness:.0});
+  const jungleGnd=new THREE.MeshStandardMaterial({map:TX.grassG,color:0x162210,roughness:.99,metalness:.0});
   makeIsland(isl6,jungleGnd);
   // isl7: NUKETOWN — 1950s nuclear test-site suburb, north-west of the home island
   const isl7=[[-208,-150],[-196,-208],[-160,-238],[-104,-246],[-56,-232],[-34,-186],[-32,-140],[-52,-108],[-96,-96],[-152,-98],[-192,-116]];
-  const suburbGnd=new THREE.MeshStandardMaterial({color:0x7c8a4c,roughness:.95,metalness:.01});
+  const suburbGnd=new THREE.MeshStandardMaterial({map:TX.grassG,color:0x7c8a4c,roughness:.95,metalness:.01});
   makeIsland(isl7,suburbGnd);
   // isl8: BLACKOUT PROTOCOL — Sector 7 urban combat zone, far west (own ground slab, no island terrain)
   const isl8=[[-670,-230],[-290,-230],[-290,150],[-670,150]];
   // isl9: MOUNT CINDER — charred volcano island south-west of the desert
   const isl9=[[-268,318],[-238,292],[-192,282],[-146,294],[-118,326],[-114,368],[-136,404],[-180,424],[-232,418],[-262,384],[-272,348]];
-  makeIsland(isl9,new THREE.MeshStandardMaterial({color:0x2a2018,roughness:.98}));
+  makeIsland(isl9,new THREE.MeshStandardMaterial({map:TX.concrete,color:0x2a2018,roughness:.98}));
   (()=>{
     const px=175,pz=305; // pyramid center (island center)
     const pyrMat=new THREE.MeshStandardMaterial({color:0xd4a85a,roughness:.88,flatShading:true});
@@ -480,7 +640,7 @@
     }
 
     // === BRIDGE from isl3 (graveyard, z=192) to isl5 (z=206) ===
-    const bMat=new THREE.MeshStandardMaterial({color:0xb89858,roughness:.9});
+    const bMat=new THREE.MeshStandardMaterial({map:TX.woodG,color:0xb89858,roughness:.9});
     // main deck
     const bdeck=box(9,.55,38,bMat,5,0.7,219);bdeck.receiveShadow=true;world.add(bdeck);addWalk(5,219,9,38,1.0);
     // railings
@@ -493,12 +653,12 @@
   /* ===== JUNGLE FORTRESS PRISON (isl6) — ancient prison overgrown by jungle ===== */
   (()=>{
     const FX=315,FZ=152;
-    const stoneM=new THREE.MeshStandardMaterial({color:0x4a4535,roughness:.95,metalness:.01});
-    const mossM=new THREE.MeshStandardMaterial({color:0x2d3d22,roughness:.98,metalness:.0});
+    const stoneM=new THREE.MeshStandardMaterial({map:TX.concrete,color:0x4a4535,roughness:.95,metalness:.01});
+    const mossM=new THREE.MeshStandardMaterial({map:TX.grassG,color:0x2d3d22,roughness:.98,metalness:.0});
     const vineM=new THREE.MeshStandardMaterial({color:0x1a5a08,roughness:.96,side:THREE.DoubleSide});
     const darkM=new THREE.MeshStandardMaterial({color:0x141210,roughness:.95,metalness:.02});
     const runeM=new THREE.MeshStandardMaterial({color:0xc8a030,emissive:0x6a5010,emissiveIntensity:.95,roughness:.55});
-    const barkM=new THREE.MeshStandardMaterial({color:0x3c2a10,roughness:.92});
+    const barkM=new THREE.MeshStandardMaterial({map:TX.woodG,color:0x3c2a10,roughness:.92});
     const leafM=new THREE.MeshStandardMaterial({color:0x1e5c0a,roughness:.88,side:THREE.DoubleSide});
     const barM=new THREE.MeshStandardMaterial({color:0x2a2820,roughness:.7,metalness:.5});
     addWalk(FX,FZ,295,200,.35);
@@ -654,7 +814,7 @@
     (()=>{
       const bx2=345,bz0=72,bz1=110,blen=bz1-bz0,bmz=(bz0+bz1)/2;
       const ropM=new THREE.MeshStandardMaterial({color:0x4a3a20,roughness:.9});
-      const plkM=new THREE.MeshStandardMaterial({color:0x3c2e18,roughness:.92});
+      const plkM=new THREE.MeshStandardMaterial({map:TX.woodG,color:0x3c2e18,roughness:.92});
       for(let z=bz0+1;z<bz1;z+=1.8){const p=box(6.5,.22,1.1,plkM,bx2,.85,z);world.add(p);addWalk(bx2,z,6.5,1.1,.9);}
       for(const s of[-1,1]){world.add(box(.15,1,blen,ropM,bx2+s*3,1.8,bmz));for(let z=bz0+2;z<bz1-2;z+=3)world.add(box(.1,1.8,.1,ropM,bx2+s*3,1.1,z));}
       for(const az of[bz0,bz1])for(const s of[-1,1]){world.add(box(1.2,3,1.2,plkM,bx2+s*3.2,1.5,az));world.add(box(.14,6,.14,ropM,bx2+s*3.2,3.5,az));}
@@ -1170,13 +1330,13 @@
   /* ===== SNOWY TUNDRA (isl4) — replaces Ice Castle ===== */
   (()=>{
     const cx=162,cz=-168;
-    const snowM=new THREE.MeshStandardMaterial({color:0xf0f8ff,roughness:.92,metalness:.0});
-    const snowD=new THREE.MeshStandardMaterial({color:0xd0e8f8,roughness:.88,metalness:.0});
-    const barkM2=new THREE.MeshStandardMaterial({color:0x3a2a18,roughness:.95});
+    const snowM=new THREE.MeshStandardMaterial({map:TX.snow,color:0xf0f8ff,roughness:.92,metalness:.0});
+    const snowD=new THREE.MeshStandardMaterial({map:TX.snow,color:0xd0e8f8,roughness:.88,metalness:.0});
+    const barkM2=new THREE.MeshStandardMaterial({map:TX.woodG,color:0x3a2a18,roughness:.95});
     const pineM2=new THREE.MeshStandardMaterial({color:0x1a4820,roughness:.88});
     const iceS=new THREE.MeshStandardMaterial({color:0xbfe8ff,roughness:.12,metalness:.06,transparent:true,opacity:.82,emissive:0x0e2848,emissiveIntensity:.18});
     const glowT=neon(0x6fe9ff,1.6);
-    const cabM=new THREE.MeshStandardMaterial({color:0x5a3a22,roughness:.9});
+    const cabM=new THREE.MeshStandardMaterial({map:TX.woodG,color:0x5a3a22,roughness:.9});
     addWalk(cx,cz,200,180,.2);
 
     // Pine tree
@@ -1393,7 +1553,7 @@
   // ── BRIDGE: PYRAMID ISLAND (isl5 NE) → JUNGLE FORTRESS (isl6 SW) ──
   (()=>{
     const ropM2=new THREE.MeshStandardMaterial({color:0x4a3a20,roughness:.9});
-    const plkM2=new THREE.MeshStandardMaterial({color:0x3c2e18,roughness:.92});
+    const plkM2=new THREE.MeshStandardMaterial({map:TX.woodG,color:0x3c2e18,roughness:.92});
     const bx2=272,bz0=244,bz1=276,blen=bz1-bz0,bmz=(bz0+bz1)/2;
     for(let z=bz0+1;z<bz1;z+=1.8){const p=box(6.5,.22,1.1,plkM2,bx2,.85,z);world.add(p);addWalk(bx2,z,6.5,1.1,.9);}
     for(const s of[-1,1]){world.add(box(.15,1,blen,ropM2,bx2+s*3,1.8,bmz));for(let z=bz0+2;z<bz1-2;z+=3)world.add(box(.1,1.8,.1,ropM2,bx2+s*3,1.1,z));}
@@ -1427,8 +1587,8 @@
   /* ===== NUKETOWN (isl7) — 1950s nuclear test-site suburb ===== */
   (()=>{
     const NX=-120,NZ=-170;
-    const conM=new THREE.MeshStandardMaterial({color:0xb8b4a8,roughness:.9});
-    const whtM=new THREE.MeshStandardMaterial({color:0xf2efe6,roughness:.7});
+    const conM=new THREE.MeshStandardMaterial({map:TX.concrete,color:0xb8b4a8,roughness:.9});
+    const whtM=new THREE.MeshStandardMaterial({map:TX.whiteG,color:0xf2efe6,roughness:.7});
     const glassM=new THREE.MeshStandardMaterial({color:0x9ac8e0,roughness:.15,metalness:.1,transparent:true,opacity:.85});
     const brickM=new THREE.MeshStandardMaterial({map:TX.brick,color:0x9a4a34,roughness:.92});
     const lawnM=new THREE.MeshStandardMaterial({color:0x5c7a3a,roughness:.95});
@@ -1471,7 +1631,7 @@
 
     // ── TWO-STORY HOUSES (yellow + green, facing the street) ──
     function nukeHouse(hx,hz,f,wallC,roofC){
-      const wallM=new THREE.MeshStandardMaterial({color:wallC,roughness:.85});
+      const wallM=new THREE.MeshStandardMaterial({map:TX.whiteG,color:wallC,roughness:.85});
       const roofM=new THREE.MeshStandardMaterial({color:roofC,roughness:.9});
       const W=11,D=14,H1=3.4,H2=3.2,fx=hx+f*W/2,dg=1.8,seg=(D-dg)/2;
       world.add(box(W,.3,D,whtM,hx,.15,hz));addWalk(hx,hz,W-1,D-1,.45);
@@ -1550,7 +1710,7 @@
     fence(-106,-128,-72,-128);fence(-72,-128,-72,-158);fence(-72,-158,-82,-158);
 
     // ── BACKYARDS: shed, clothesline, doghouse ──
-    {const shedM=new THREE.MeshStandardMaterial({color:0x8a6a4a,roughness:.9});
+    {const shedM=new THREE.MeshStandardMaterial({map:TX.woodG,color:0x8a6a4a,roughness:.9});
     const shed=box(4.5,3,3.8,shedM,-172,1.5,-204);world.add(shed);addColl(shed);
     const sr=box(5.2,.2,4.4,new THREE.MeshStandardMaterial({color:0x4a4038,roughness:.9}),-172,3.2,-204);sr.rotation.z=.12;world.add(sr);
     world.add(box(1.2,2,.1,new THREE.MeshStandardMaterial({color:0x3a2c1c,roughness:.9}),-169.75,1.05,-204));}
@@ -1623,8 +1783,8 @@
       // axis-aligned with swapped dims; decorations live in a rotated group.
       function houseLite(hx,hz,f,zFace){
         const[wc,rc]=palette[(ci++)%palette.length];
-        const wallM2=new THREE.MeshStandardMaterial({color:wc,roughness:.88});
-        const roofM2=new THREE.MeshStandardMaterial({color:rc,roughness:.9});
+        const wallM2=new THREE.MeshStandardMaterial({map:TX.whiteG,color:wc,roughness:.88});
+        const roofM2=new THREE.MeshStandardMaterial({map:TX.poly,color:rc,roughness:.9});
         world.add(wallB(zFace?7:8,3.1,zFace?8:7,hx,1.85,hz,wallM2));
         const g=new THREE.Group();g.position.set(hx,0,hz);if(zFace)g.rotation.y=-Math.PI/2;world.add(g);
         const rf2=gabledRoof(9,8,2.1,roofM2);rf2.position.y=3.45;g.add(rf2);
@@ -1679,14 +1839,14 @@
   const _bpConc=[0x3a3833,0x413d36,0x35322c,0x453f35,0x2f2d29];
   const _bpWinLit=new THREE.MeshStandardMaterial({color:0x141210,emissive:0xff8c3a,emissiveIntensity:.9});
   const _bpWinDead=new THREE.MeshStandardMaterial({color:0x0c0b0a,roughness:.4,metalness:.3});
-  const _bpRubbleM=new THREE.MeshStandardMaterial({color:0x36332d,roughness:1});
-  const _bpBarrM=new THREE.MeshStandardMaterial({color:0x4a463e,roughness:.95});
-  const _bpCarM=new THREE.MeshStandardMaterial({color:0x3d2e22,roughness:.85,metalness:.35});
+  const _bpRubbleM=new THREE.MeshStandardMaterial({map:TX.concrete,color:0x36332d,roughness:1});
+  const _bpBarrM=new THREE.MeshStandardMaterial({map:TX.concrete,color:0x4a463e,roughness:.95});
+  const _bpCarM=new THREE.MeshStandardMaterial({map:TX.rust,roughness:.85,metalness:.35});
   const _bpCarGl=new THREE.MeshStandardMaterial({color:0x0a0a0a,roughness:.3,metalness:.4});
   const _bpFireM=neon(0xff6a1e,2.4);
   const _bpRubGeo=new THREE.DodecahedronGeometry(1,0);
   function ruinBuilding(x,z,w,d,h,ruined){
-    const mat=new THREE.MeshStandardMaterial({color:pick(_bpConc),roughness:.92});
+    const mat=new THREE.MeshStandardMaterial({map:TX.concrete,color:pick(_bpConc),roughness:.92});
     const hEff=ruined?h*rand(.55,.8):h;
     world.add(wallB(w,hEff,d,x,hEff/2,z,mat));
     const rows=Math.min(4,Math.max(2,Math.floor(hEff/5))),cols=Math.min(4,Math.max(2,Math.floor(w/5)));
@@ -1713,7 +1873,7 @@
   }
   (()=>{
     const BX=-480,BZ=-40,HALF=190;
-    const gndM=new THREE.MeshStandardMaterial({color:0x22201c,roughness:.95});
+    const gndM=new THREE.MeshStandardMaterial({map:TX.concrete,color:0x22201c,roughness:.95});
     // ground slab (covers the water)
     const slab=box(HALF*2+20,.1,HALF*2+20,gndM,BX,.0,BZ);slab.receiveShadow=true;slab.castShadow=false;world.add(slab);addWalk(BX,BZ,HALF*2+20,HALF*2+20,.08);
     // street grid (causeway-style asphalt)
@@ -1833,7 +1993,7 @@
 
   function skyscraper(name,x,z,w,d,h,col=0x141b2c,nc=0x19f5ff,shadow=true){
     const g=new THREE.Group();g.position.set(x,0,z);world.add(g);
-    const body=box(w,h,d,new THREE.MeshStandardMaterial({color:col,roughness:.42,metalness:.22}),0,h/2,0);body.castShadow=shadow;g.add(body);addColl(body);
+    const body=box(w,h,d,new THREE.MeshStandardMaterial({map:TX.poly,color:col,roughness:.42,metalness:.22}),0,h/2,0);body.castShadow=shadow;g.add(body);addColl(body);
     const tr=neon(nc,1.1);
     // Window-grid detail is expensive (dozens of meshes per tower). Only hero buildings
     // (shadow=true) get it; the procedural sprawl (shadow=false) skips it to cut draw calls.
@@ -1852,7 +2012,7 @@
   }
   function lowBlock(name,x,z,w,d,h,nc=0xff2bd6,shadow=true){
     const g=new THREE.Group();g.position.set(x,0,z);world.add(g);
-    const base=box(w,h,d,new THREE.MeshStandardMaterial({color:0x1c222d,roughness:.8}),0,h/2,0);base.castShadow=shadow;g.add(base);addColl(base);
+    const base=box(w,h,d,new THREE.MeshStandardMaterial({map:TX.concrete,color:0x1c222d,roughness:.8}),0,h/2,0);base.castShadow=shadow;g.add(base);addColl(base);
     const gl=new THREE.MeshStandardMaterial({color:0x2a4060,roughness:.2,metalness:.1,transparent:true,opacity:.9});
     if(shadow){for(let i=0;i<Math.floor(w/3);i++){const xx=-w/2+2+i*3;g.add(box(1.2,1.3,.12,gl,xx,2.2,-d/2-.08));}}
     g.add(box(w-.8,.18,d-.8,new THREE.MeshStandardMaterial({color:0x141a24,roughness:.78}),0,h+.26,0));addWalk(x,z,w-.8,d-.8,h+.35);
@@ -2144,11 +2304,11 @@
   scene.add(camera);
 
   // Shared weapon materials (exact repo values)
-  const _matDark =new THREE.MeshStandardMaterial({color:0x16181d,roughness:.45,metalness:.6});
-  const _matMetal=new THREE.MeshStandardMaterial({color:0x4a505c,metalness:.9,roughness:.25});
-  const _matPoly =new THREE.MeshStandardMaterial({color:0x23262e,roughness:.6,metalness:.4});
-  const _matSteel=new THREE.MeshStandardMaterial({color:0x282c34,metalness:.95,roughness:.18});
-  const _matWood =new THREE.MeshStandardMaterial({color:0x4a2e18,roughness:.75,metalness:.05});
+  const _matDark =new THREE.MeshStandardMaterial({map:TX.poly,color:0x16181d,roughness:.45,metalness:.6});
+  const _matMetal=new THREE.MeshStandardMaterial({map:TX.brushed,color:0x4a505c,metalness:.9,roughness:.25});
+  const _matPoly =new THREE.MeshStandardMaterial({map:TX.poly,color:0x23262e,roughness:.6,metalness:.4});
+  const _matSteel=new THREE.MeshStandardMaterial({map:TX.brushed,color:0x282c34,metalness:.95,roughness:.18});
+  const _matWood =new THREE.MeshStandardMaterial({map:TX.woodG,color:0x4a2e18,roughness:.75,metalness:.05});
   const _matBrass=new THREE.MeshStandardMaterial({color:0xb89230,metalness:.9,roughness:.3});
   function _accent(hex){return new THREE.MeshBasicMaterial({color:hex});}
   function _glow(hex,i){return new THREE.MeshStandardMaterial({color:hex,emissive:hex,emissiveIntensity:i||1.4,roughness:.4});}
@@ -2336,8 +2496,8 @@
     return g;
   }
   /* ===== BLACKOUT PROTOCOL II weapon models (ported, scaled to this rig) ===== */
-  const _matOlive=new THREE.MeshStandardMaterial({color:0x2e3324,roughness:.7,metalness:.3});
-  const _matGrip2=new THREE.MeshStandardMaterial({color:0x2a2620,roughness:.9});
+  const _matOlive=new THREE.MeshStandardMaterial({map:TX.poly,color:0x2e3324,roughness:.7,metalness:.3});
+  const _matGrip2=new THREE.MeshStandardMaterial({map:TX.poly,color:0x2a2620,roughness:.9});
   function _buildRifle(c){
     const g=new THREE.Group();
     _part(g,new THREE.BoxGeometry(.065,.085,.5),_matOlive,0,0,-.12);
