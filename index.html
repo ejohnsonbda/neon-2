@@ -522,10 +522,20 @@
   // Unified road styling (matches the causeway): yellow centre dashes + pale edge lines
   const roadDashM=neon(0xffe45c,.65);
   const roadEdgeM=new THREE.MeshStandardMaterial({color:0xd8d8d0,roughness:.8});
+  const sidewalkM=new THREE.MeshStandardMaterial({map:TX.concrete,color:0xb0aca0,roughness:.94});
   function laneDashes(x,z,w,d,y=.19){
     const horiz=w>d,len=horiz?w:d;
     for(let t=-len/2+2.5;t<len/2-2;t+=5.5){const m=box(horiz?2.1:.32,.03,horiz?.32:2.1,roadDashM,x+(horiz?t:0),y,z+(horiz?0:t));m.castShadow=false;world.add(m);}
     for(const s of[-1,1]){const e=box(horiz?len:.2,.03,horiz?.2:len,roadEdgeM,x+(horiz?0:s*(w/2-.18)),y,z+(horiz?s*(d/2-.18):0));e.castShadow=false;world.add(e);}
+    // sidewalks flanking every gridded street
+    const sw=2.6,off=(horiz?d:w)/2+sw/2+.15;
+    for(const s of[-1,1]){const m2=box(horiz?len:sw,.05,horiz?sw:len,sidewalkM,x+(horiz?0:s*off),y-.06,z+(horiz?s*off:0));m2.castShadow=false;m2.receiveShadow=true;world.add(m2);}
+    // streetlamps along long arterials (alternating sides, emissive heads)
+    if(len>=60)for(let t=-len/2+18,i2=0;t<len/2-8;t+=44,i2++){
+      const s=i2%2?1:-1,lx=x+(horiz?t:s*off),lz=z+(horiz?s*off:t);
+      world.add(cyl(.09,.13,5,7,M.metal,lx,y+2.5,lz));
+      world.add(box(horiz?.36:.9,.22,horiz?.9:.36,neon(0xffd890,1.5),lx+(horiz?0:-s*.9),y+5.1,lz+(horiz?-s*.9:0)));
+    }
   }
 
   /* ============================= ISLANDS ============================= */
@@ -616,12 +626,12 @@
     const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=rot;world.add(g);
     g.add(box(w,.22,d,M.wood,0,.11,0));
     // Front wall with door gap (1.9 wide × 2.55 tall opening)
-    const _dw=1.9,_dh=2.55,_sw=(w-_dw)/2;
+    const _dw=3.2,_dh=2.8,_sw=(w-_dw)/2;
     if(_sw>0.4){g.add(wallB(_sw,h,.35,-(_dw/2+_sw/2),h/2+.33,-d/2,M.stucco));g.add(wallB(_sw,h,.35,_dw/2+_sw/2,h/2+.33,-d/2,M.stucco));}
     g.add(wallB(w,h-_dh,.35,0,_dh+(h-_dh)/2+.33,-d/2,M.stucco));
     g.add(wallB(w,h,.35,0,h/2+.33,d/2,M.stucco));
     g.add(wallB(.35,h,d,-w/2,h/2+.33,0,M.stucco));g.add(wallB(.35,h,d,w/2,h/2+.33,0,M.stucco));
-    g.add(box(1.35,2.45,.12,M.darkWood,0,1.35,-d/2-.19));
+    g.add(box(2.3,2.6,.12,M.darkWood,0,1.42,-d/2-.19));
     addWalk(x,z,w-1,d-1,.44);
     const cf=Math.max(2,Math.floor(w/5));for(let i=0;i<cf;i++){const xx=-w/2+(i+1)*w/(cf+1);if(Math.abs(xx)>1.2)mkWin(g,xx,2.5,-d/2-.22,1.1,1.15);mkWin(g,xx,2.5,d/2+.22,1.1,1.15,'back');}
     if(type==='church'){for(let r=0;r<8;r++){const bx=new THREE.Group();bx.add(box(2.4,.18,.42,M.wood,0,.55,0));bx.add(box(2.4,.16,.18,M.wood,0,.92,.28));bx.position.set(-2.8,0,-d/2+8+r*2.4);g.add(bx);const bx2=bx.clone();bx2.position.x=2.8;g.add(bx2);}g.add(box(4,.7,1.35,M.darkWood,0,.55,d/2-4));}
@@ -1137,7 +1147,9 @@
       const base=box(w,h,d,iceBody2M,0,h/2,0);g.add(base);addColl(base);
       const glW=new THREE.MeshStandardMaterial({color:0x2a4060,roughness:.2,metalness:.1,transparent:true,opacity:.9});
       for(let i=0;i<Math.floor(w/3);i++){const xx=-w/2+2+i*3;g.add(box(1.2,1.3,.12,glW,xx,2.2,-d/2-.08));}
-      g.add(box(w-.8,.18,d-.8,new THREE.MeshStandardMaterial({color:0x141a24,roughness:.78}),0,h+.26,0));addWalk(x,z,w-.8,d-.8,h+.35);
+      g.add(box(2.8,2.7,.22,new THREE.MeshStandardMaterial({color:0x0c0f14,roughness:.35,metalness:.4}),0,1.35,-d/2-.1));
+    g.add(box(3.4,.3,1.5,new THREE.MeshStandardMaterial({map:TX.poly,color:0x232a36,roughness:.7}),0,2.95,-d/2-.75));
+    g.add(box(w-.8,.18,d-.8,new THREE.MeshStandardMaterial({color:0x141a24,roughness:.78}),0,h+.26,0));addWalk(x,z,w-.8,d-.8,h+.35);
       const cv=document.createElement('canvas');cv.width=512;cv.height=160;const ctx=cv.getContext('2d');
       ctx.fillStyle='rgba(4,12,20,.88)';ctx.fillRect(0,0,512,160);ctx.strokeStyle='#'+nc.toString(16).padStart(6,'0');ctx.lineWidth=8;ctx.strokeRect(10,10,492,140);
       ctx.shadowColor='#'+nc.toString(16).padStart(6,'0');ctx.shadowBlur=24;ctx.fillStyle='#fff';ctx.font='bold 50px Orbitron,Arial';ctx.textAlign='center';ctx.textBaseline='middle';if(name)ctx.fillText(name.split(' ')[0],256,84);
@@ -1309,7 +1321,7 @@
     function nukeHouse(hx,hz,f,wallC,roofC){
       const wallM=new THREE.MeshStandardMaterial({map:TX.whiteG,color:wallC,roughness:.85});
       const roofM=new THREE.MeshStandardMaterial({color:roofC,roughness:.9});
-      const W=11,D=14,H1=3.4,H2=3.2,fx=hx+f*W/2,dg=1.8,seg=(D-dg)/2;
+      const W=11,D=14,H1=3.4,H2=3.2,fx=hx+f*W/2,dg=3.0,seg=(D-dg)/2;
       world.add(box(W,.3,D,whtM,hx,.15,hz));addWalk(hx,hz,W-1,D-1,.45);
       // front wall — door gaps on both floors (upper opens onto the balcony)
       world.add(wallB(.4,H1,seg,fx,H1/2+.3,hz-(dg/2+seg/2),wallM));world.add(wallB(.4,H1,seg,fx,H1/2+.3,hz+(dg/2+seg/2),wallM));
@@ -1581,7 +1593,7 @@
     const inM=new THREE.MeshStandardMaterial({map:TX.concrete,color:0x6f6a60,roughness:.9});
     world.add(box(w,.3,d,inM,x,.15,z));addWalk(x,z,W2,D2,.45);
     for(let f=0;f<nf;f++){
-      const y0=.3+f*FH,dg=2.2,seg=(w-dg)/2;
+      const y0=.3+f*FH,dg=3.4,seg=(w-dg)/2;
       if(f===0){
         world.add(wallB(seg,FH,.4,x-(dg/2+seg/2),y0+FH/2,z+d/2,bodyM));
         world.add(wallB(seg,FH,.4,x+(dg/2+seg/2),y0+FH/2,z+d/2,bodyM));
@@ -1827,6 +1839,12 @@
       // cheap neon accent: two vertical edge strips instead of a full grid
       g.add(box(.12,h*.8,.12,tr,-w/2+.2,h*.5,-d/2-.06));g.add(box(.12,h*.8,.12,tr,w/2-.2,h*.5,-d/2-.06));
     }
+    // street-level entrance: glass double door, side posts, awning, accent lintel
+    const entM=new THREE.MeshStandardMaterial({color:0x0c0f14,roughness:.35,metalness:.4});
+    g.add(box(3.6,3,.24,entM,0,1.5,-d/2-.1));
+    g.add(box(.22,3.3,.22,entM,-2.4,1.65,-d/2-.9));g.add(box(.22,3.3,.22,entM,2.4,1.65,-d/2-.9));
+    g.add(box(4.8,.3,1.9,new THREE.MeshStandardMaterial({map:TX.poly,color:0x1a2030,roughness:.7}),0,3.35,-d/2-.95));
+    g.add(box(3.6,.14,.12,tr,0,3.08,-d/2-.16));
     g.add(box(w-1.2,.18,d-1.2,new THREE.MeshStandardMaterial({color:0x10141c,roughness:.8}),0,h+.12,0));
     addWalk(x,z,w-1.2,d-1.2,h+.21);g.add(cyl(.08,.08,5,8,tr,0,h+2.7,0));
     // rooftop beacon (emissive only — no per-building point light, that was the lag source)
@@ -2604,8 +2622,8 @@
       if(rnd()<nearBias){
         const ang=rand(0,Math.PI*2),dist=rand(18,48);
         const x=camera.position.x+Math.cos(ang)*dist,z=camera.position.z+Math.sin(ang)*dist;
-        const eligible=SPAWN_ISLANDS;
-        if(eligible.some(s=>polyInside(x,z,s.poly))&&!golemBlocked(x,z,1.3)&&Math.hypot(x-camera.position.x,z-camera.position.z)>12)return{x,z};
+        // one continuous city — any in-bounds point near the player is a valid spawn
+        if(x>-680&&x<880&&z>-320&&z<500&&!golemBlocked(x,z,1.3)&&Math.hypot(x-camera.position.x,z-camera.position.z)>12)return{x,z};
         continue;
       }
       const pool=SPAWN_ISLANDS;
@@ -2724,8 +2742,8 @@
         if(def.fly)g.position.y+=(def.flyH-g.position.y)*Math.min(1,dt*2);
       }
       // keep within sane bounds
-      g.position.x=TL.clamp(g.position.x,-95,855);
-      g.position.z=TL.clamp(g.position.z,-225,225);
+      g.position.x=TL.clamp(g.position.x,-680,880);
+      g.position.z=TL.clamp(g.position.z,-320,500);
       // health bar
       if(u.isBoss){u.fill.scale.x=Math.max(.001,u.hp/u.maxHp);u.fill.position.x=-(1-u.fill.scale.x)*1.12;u.barG.lookAt(pp.x,u.barG.getWorldPosition(tmpV).y,pp.z);}
       // bob legs
@@ -3212,6 +3230,24 @@
     if(state.started&&!state.over){
       updatePlayer(dt);
       if(state.invuln>0)state.invuln-=dt;
+      // giant-city pursuit: if no hostiles are anywhere near the player for a few
+      // seconds, relocate the strays to the fight (spawn-in burst included)
+      {let anyNear=false,hostiles=0;
+       for(const g of golems){if(!g.userData.alive||!g.userData.hostile)continue;hostiles++;
+         if(Math.hypot(g.position.x-camera.position.x,g.position.z-camera.position.z)<65){anyNear=true;break;}}
+       if(anyNear||hostiles===0||cloaked>0)waveStuckTimer=0;
+       else{waveStuckTimer+=dt;
+         if(waveStuckTimer>5){waveStuckTimer=0;let moved=0;
+           for(const g of golems){
+             if(moved>=6)break;
+             if(!g.userData.alive||!g.userData.hostile||g.userData.isBoss)continue;
+             const ang=rand(0,Math.PI*2),dd=rand(22,42);
+             const nx=camera.position.x+Math.cos(ang)*dd,nz=camera.position.z+Math.sin(ang)*dd;
+             if(nx>-680&&nx<880&&nz>-320&&nz<500&&!golemBlocked(nx,nz,1.3)){
+               g.position.x=nx;g.position.z=nz;spawnBurst(g.position.clone().setY(2),0x9b5cff);moved++;}
+           }
+           if(moved)showBanner('CONTACT','hostiles closing on your position',1200);
+         }}}
       if(cloaked>0){cloaked-=dt;if(cloaked<=0){cloakCd=20;renderer.domElement.style.filter='';showBanner('CLOAK OFFLINE','',800);}}
       else if(cloakCd>0)cloakCd-=dt;
       if(odT>0){odT-=dt;if(odT<=0){odCd=16;showBanner('OVERDRIVE OFFLINE','',800);}}
