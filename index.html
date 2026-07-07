@@ -147,6 +147,7 @@
       <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
         <button class="modeSelBtn lvlBtn active" id="lvNeon" onclick="selectLevel('neon',this)">🌆 NEON CITY</button>
         <button class="modeSelBtn lvlBtn" id="lvBlackout" onclick="selectLevel('blackout',this)">☠ BLACKOUT PROTOCOL</button>
+        <button class="modeSelBtn lvlBtn" id="lvFantasy" onclick="selectLevel('fantasy',this)">🏰 FANTASY REALM</button>
       </div>
       <div style="margin-top:8px;">
         <a href="blackout-protocol-2.html" style="font-family:Orbitron,Arial;font-size:10px;letter-spacing:2px;color:#c9a15f;text-decoration:none;border:1px solid rgba(201,161,95,.4);border-radius:8px;padding:5px 12px;display:inline-block;">🎖 BLACKOUT PROTOCOL II — CLASSIC STANDALONE</a>
@@ -475,7 +476,7 @@
     if(timeState.t>0.001){timeState.t=Math.max(0,timeState.t-dt*0.5);applyTimeOfDay(timeState.t);}
   }
   // BLACKOUT PROTOCOL atmosphere — burnt night sky fades in while inside Sector 7, plus ash/fire fx
-  let blackoutBlend=0;
+  let blackoutBlend=0,fantasyBlend=0;
   function updateBlackoutAtmo(dt){
     if(camera.position.x<-140&&typeof blackoutFx!=='undefined'){
       const t2=performance.now()/1000;
@@ -483,14 +484,19 @@
       for(let i2=0;i2<blackoutFx.glows.length;i2++)blackoutFx.glows[i2].intensity=(i2?1.1:1.5)+Math.sin(t2*(i2?1.7:2.2)+i2*2)*.25;
       if(blackoutFx.ash){const ap=blackoutFx.ash.geometry.attributes.position.array;for(let i2=0;i2<blackoutFx.ashVel.length;i2++){ap[i2*3]+=blackoutFx.ashVel[i2][0]*dt;ap[i2*3+1]+=blackoutFx.ashVel[i2][1]*dt;ap[i2*3+2]+=blackoutFx.ashVel[i2][2]*dt;if(ap[i2*3+1]<0)ap[i2*3+1]=36;}blackoutFx.ash.geometry.attributes.position.needsUpdate=true;}
     }
-    const tgt=camera.position.x<-300?1:0;
-    if(Math.abs(blackoutBlend-tgt)<.01&&tgt===0)return;
-    blackoutBlend+=(tgt-blackoutBlend)*Math.min(1,dt*1.6);
-    const t=blackoutBlend;
-    scene.background.setHex(lerpHex(0x9fc4e8,0x191410,t));
-    scene.fog.color.setHex(lerpHex(0x9fc4e8,0x1d1712,t));
-    scene.fog.density=0.0029+(0.009-0.0029)*t;
-    sun.intensity=2.0-(2.0-.5)*t;ambient.intensity=.55-(.55-.32)*t;hemi.intensity=1.05-(1.05-.5)*t;
+    const tgt=camera.position.x<-300&&camera.position.z>-330?1:0;
+    const ftgt=camera.position.z<-395?1:0;
+    if(!(Math.abs(blackoutBlend-tgt)<.01&&tgt===0&&Math.abs(fantasyBlend-ftgt)<.01&&ftgt===0)){
+      blackoutBlend+=(tgt-blackoutBlend)*Math.min(1,dt*1.6);
+      fantasyBlend+=(ftgt-fantasyBlend)*Math.min(1,dt*1.4);
+      const t=blackoutBlend,f=fantasyBlend;
+      scene.background.setHex(lerpHex(lerpHex(0x9fc4e8,0x191410,t),0xb8d8ea,f));
+      scene.fog.color.setHex(lerpHex(lerpHex(0x9fc4e8,0x1d1712,t),0x9fc8e6,f));
+      scene.fog.density=(0.0029+(0.009-0.0029)*t)*(1-f)+0.0044*f;
+      sun.intensity=(2.0-(2.0-.5)*t)*(1-f)+2.3*f;
+      sun.color.setHex(lerpHex(0xfff4e0,0xffcc88,f));
+      ambient.intensity=.55-(.55-.32)*t;hemi.intensity=(1.05-(1.05-.5)*t)*(1-f)+.9*f;
+    }
   }
 
   /* ============================= SKY ============================= */
@@ -574,6 +580,8 @@
   makeIsland(isl7,suburbGnd);
   // isl8: BLACKOUT PROTOCOL — Sector 7 urban combat zone, far west (own ground slab, no island terrain)
   const isl8=[[-670,-230],[-290,-230],[-290,150],[-670,150]];
+  // isl10: FANTASY REALM — mystic highlands far north of the metropolis
+  const isl10=[[-10,-630],[210,-630],[210,-410],[-10,-410]];
   // isl9: MOUNT CINDER — charred volcano island south-west of the desert
   const isl9=[[-268,318],[-238,292],[-192,282],[-146,294],[-118,326],[-114,368],[-136,404],[-180,424],[-232,418],[-262,384],[-272,348]];
   makeIsland(isl9,new THREE.MeshStandardMaterial({map:TX.grassG,color:0x39531f,roughness:.98}));
@@ -1793,6 +1801,106 @@
   addColumn(-470,2,-56,{});addColumn(-522,2,32,{});addColumn(-430,2,-118,{color:0xff7a2a,additive:true,rise:2.4,life:1.1,opacity:.5,size:.42,spread:.35});
   addColumn(14,2,168,{});addColumn(372,2,4,{});
 
+  /* ===== FANTASY REALM (isl10) — mystic highlands, playable stage ===== */
+  const realmRocks=[];let realmEmbers=null,realmEmberData=[];
+  (()=>{
+    const RX=100,RZ=-520,EXT=220,SEG=48;
+    const H=(x,z)=>{const rx=x-RX,rz=z-RZ;const b=Math.sin(rx*.015)*Math.cos(rz*.012)*6+Math.sin(rx*.025+rz*.02)*3+Math.sin(rx*.06+rz*.05)*.8;return Math.max(.2,2.2+.55*b);};
+    // rolling-hill terrain (textured with the bakery grass)
+    const gTex=TX.grass.clone();gTex.repeat.set(16,16);gTex.needsUpdate=true;
+    const tg=new THREE.PlaneGeometry(EXT,EXT,SEG,SEG);tg.rotateX(-Math.PI/2);
+    const tp=tg.attributes.position;
+    for(let i=0;i<tp.count;i++){tp.setY(i,H(tp.getX(i)+RX,tp.getZ(i)+RZ));}
+    tg.computeVertexNormals();
+    const terra=new THREE.Mesh(tg,new THREE.MeshStandardMaterial({map:gTex,color:0x7aa668,roughness:.92}));
+    terra.position.set(RX,0,RZ);terra.receiveShadow=true;world.add(terra);
+    // walkable elevation grid (10u tiles riding the height field)
+    for(let gx=-105;gx<=105;gx+=10)for(let gz=-105;gz<=105;gz+=10)addWalk(RX+gx,RZ+gz,10,10,H(RX+gx,RZ+gz)+.12);
+    // dry meadow patches
+    const sTex=TX.sand;
+    for(const[px,pz,pr] of[[35,-40,9],[-50,25,7],[70,55,8],[-25,-70,6],[10,80,7]]){
+      const pm=new THREE.Mesh(new THREE.CircleGeometry(pr,10),new THREE.MeshStandardMaterial({map:sTex,color:0xb8a06a,roughness:1,transparent:true,opacity:.55,depthWrite:false}));
+      pm.rotation.x=-Math.PI/2;pm.position.set(RX+px,H(RX+px,RZ+pz)+.2,RZ+pz);world.add(pm);
+    }
+    // giant stone columns (textured concrete)
+    const colM=new THREE.MeshStandardMaterial({map:TX.concrete,color:0x8a8a9a,roughness:.8,flatShading:true});
+    const colPos=[[-80,-60],[-40,-85],[20,-92],[75,-70],[95,-20],[85,40],[45,85],[-15,92],[-70,70],[-95,15],[-60,-20],[55,-35]];
+    for(const[cx3,cz3] of colPos){
+      const wx=RX+cx3,wz=RZ+cz3,hy=H(wx,wz),ch=12+((cx3*7+cz3*13)%14+14)%14,cr=2+(((cx3*3+cz3)%10+10)%10)*.15;
+      const shaft=cyl(cr*.8,cr,ch,8,colM,wx,hy+ch/2,wz);world.add(shaft);addColl(shaft);
+      world.add(cyl(cr*1.1,cr*.9,ch*.08,8,colM,wx,hy+ch+ch*.04,wz));
+      world.add(cyl(cr*1.2,cr*1.4,ch*.1,8,colM,wx,hy+ch*.05,wz));
+    }
+    // rock arches
+    for(const[ax,az,span,ah] of[[-30,30,12,8],[40,20,10,7],[0,-45,14,9],[-75,-15,9,6],[60,-75,11,8],[-45,80,10,7]]){
+      const wx=RX+ax,wz=RZ+az,hy=H(wx,wz);
+      const g2=new THREE.Group();g2.position.set(wx,hy,wz);g2.rotation.y=(ax*13+az*7)%314/100;world.add(g2);
+      for(const sd of[-1,1]){const p=cyl(1.1,1.4,ah,6,colM,sd*span/2,ah/2,0);g2.add(p);}
+      const arch=new THREE.Mesh(new THREE.TorusGeometry(span/2,1,8,12,Math.PI),colM);
+      arch.position.y=ah;arch.castShadow=true;g2.add(arch);
+    }
+    // floating rocks (animated) — bakery concrete
+    const rockGeo2=new THREE.DodecahedronGeometry(1,0);
+    for(let i=0;i<30;i++){
+      const big=i<14,sz2=big?rand(2,4.5):rand(.5,1.4);
+      const r=new THREE.Mesh(rockGeo2,new THREE.MeshStandardMaterial({map:TX.concrete,color:pick([0x7a8a8a,0x8a7a7a,0x9a8a7a,0x5a6a7a]),roughness:.85,flatShading:true}));
+      const a=rand(0,Math.PI*2),rad=rand(20,100);
+      const wx=RX+Math.cos(a)*rad,wz=RZ+Math.sin(a)*rad,wy=rand(14,42);
+      r.position.set(wx,wy,wz);r.scale.set(sz2,sz2*rand(.5,.8),sz2*rand(.6,1));
+      r.rotation.set(rnd()*6,rnd()*6,rnd()*6);r.castShadow=big;world.add(r);
+      realmRocks.push({m:r,baseY:wy,fs:rand(.15,.45),ph:rand(0,6.28),rs:rand(-.008,.008)});
+    }
+    // trees: pines, twisted, canopy — trunks/foliage textured
+    const trkM=new THREE.MeshStandardMaterial({map:TX.woodG,color:0x5a4a3a,roughness:.9});
+    const folM=c=>new THREE.MeshStandardMaterial({map:TX.grassG,color:c,roughness:.8,flatShading:true});
+    function rPine(wx,wz){
+      const hy=H(wx,wz),th=rand(1.2,2.4);
+      world.add(cyl(.25,.4,th,6,trkM,wx,hy+th/2,wz));
+      const fm=folM(pick([0x3a7a3a,0x2e6a34,0x477a2e]));
+      const lay=3+(rnd()<.5?1:0);
+      for(let l=0;l<lay;l++){const r2=1+(lay-l)*.6,h2=rand(1.2,2);
+        const cone=new THREE.Mesh(new THREE.ConeGeometry(r2,h2,7),fm);cone.position.set(wx,hy+th+l*h2*.7+h2/2,wz);cone.castShadow=true;world.add(cone);}
+    }
+    function rCanopy(wx,wz){
+      const hy=H(wx,wz),ht=rand(3.4,5);
+      world.add(cyl(.8,1.2,ht,8,trkM,wx,hy+ht/2,wz));
+      const fm=folM(pick([0x3a8a3a,0x4a8a4a]));
+      const can=new THREE.Mesh(new THREE.SphereGeometry(rand(3.4,4.6),7,7),fm);can.position.set(wx,hy+ht+1.4,wz);can.scale.y=.85;can.castShadow=true;world.add(can);
+      for(let i=0;i<4;i++){const cl=new THREE.Mesh(new THREE.SphereGeometry(rand(1.2,2),6,6),fm);const a2=i/4*6.28;cl.position.set(wx+Math.cos(a2)*2.6,hy+ht+rand(.4,1.4),wz+Math.sin(a2)*2.6);cl.castShadow=true;world.add(cl);}
+    }
+    for(let i=0;i<22;i++){const a=rand(0,6.28),rr=rand(25,102);rPine(RX+Math.cos(a)*rr,RZ+Math.sin(a)*rr);}
+    for(let i=0;i<8;i++){const a=rand(0,6.28),rr=rand(20,80);rCanopy(RX+Math.cos(a)*rr,RZ+Math.sin(a)*rr);}
+    // bushes + grass tufts + wildflowers
+    for(let i=0;i<16;i++){const a=rand(0,6.28),rr=rand(10,100),wx=RX+Math.cos(a)*rr,wz=RZ+Math.sin(a)*rr,hy=H(wx,wz);
+      const fm=folM(new THREE.Color().setHSL(.28+rand(-.03,.06),.4,rand(.3,.42)).getHex());
+      for(let j=0;j<3;j++){const r2=rand(.4,1);const sp=new THREE.Mesh(new THREE.SphereGeometry(r2,5,5),fm);sp.position.set(wx+rand(-.7,.7),hy+r2*.6,wz+rand(-.7,.7));world.add(sp);}}
+    const gcols=[0x4a8a3a,0x5a9a4a,0x6a8a4a,0x7a9a5a];
+    for(let i=0;i<44;i++){const a=rand(0,6.28),rr=rand(8,104),wx=RX+Math.cos(a)*rr,wz=RZ+Math.sin(a)*rr,hy=H(wx,wz);
+      const fm=folM(pick(gcols));
+      for(let j=0;j<4;j++){const bl=new THREE.Mesh(new THREE.ConeGeometry(.05,rand(.4,.9),3),fm);bl.position.set(wx+rand(-.3,.3),hy+.25,wz+rand(-.3,.3));bl.rotation.set(rand(-.25,.25),rand(0,6.28),rand(-.25,.25));world.add(bl);}}
+    for(let i=0;i<26;i++){const a=rand(0,6.28),rr=rand(8,100),wx=RX+Math.cos(a)*rr,wz=RZ+Math.sin(a)*rr;
+      const fl=new THREE.Mesh(new THREE.SphereGeometry(rand(.08,.18),5,5),neon(pick([0xff6b6b,0xffb347,0xffd93d,0x6bcb77,0x4d96ff,0x9b59b6]),.5));
+      fl.position.set(wx,H(wx,wz)+.15,wz);world.add(fl);}
+    // drifting embers (ported particle system)
+    {const n=120,geo3=new THREE.BufferGeometry(),p3=new Float32Array(n*3);
+    for(let i=0;i<n;i++){const a=rand(0,6.28),rr=rand(10,95);const wx=RX+Math.cos(a)*rr,wz=RZ+Math.sin(a)*rr,wy=rand(5,36);
+      p3[i*3]=wx;p3[i*3+1]=wy;p3[i*3+2]=wz;realmEmberData.push({bx:wx,by:wy,bz:wz,sp:rand(.15,.55),ph:rand(0,6.28)});}
+    geo3.setAttribute('position',new THREE.BufferAttribute(p3,3));
+    realmEmbers=new THREE.Points(geo3,new THREE.PointsMaterial({color:0xffaa66,size:.24,transparent:true,opacity:.4,blending:THREE.AdditiveBlending,depthWrite:false}));
+    realmEmbers.frustumCulled=false;world.add(realmEmbers);}
+    addLabel('FANTASY REALM',RX,30,RZ);markers.push({name:'Fantasy Realm',x:RX,z:RZ});
+  })();
+  function updateRealm(dt){
+    const t=performance.now()/1000;
+    for(const r of realmRocks){r.m.position.y=r.baseY+Math.sin(t*r.fs+r.ph)*.8;r.m.rotation.y+=r.rs;r.m.rotation.x+=r.rs*.5;}
+    if(realmEmbers&&camera.position.z<-330){
+      const p=realmEmbers.geometry.attributes.position.array;
+      for(let i=0;i<realmEmberData.length;i++){const d=realmEmberData[i];
+        p[i*3]=d.bx+Math.sin(t*d.sp+d.ph)*1.5;p[i*3+1]=d.by+Math.sin(t*d.sp*.7+d.ph*1.3)*2;p[i*3+2]=d.bz+Math.cos(t*d.sp*.8+d.ph*.7)*1.5;}
+      realmEmbers.geometry.attributes.position.needsUpdate=true;
+    }
+  }
+
   // Same war-torn props reused across the other levels/districts
   wreckedCar(14,168,.15,true);wreckedCar(-2,118,2.9,false);wreckedCar(96,150,1.4,false);      // Blackthorn streets
   wreckedCar(302,-3,.1,false);wreckedCar(372,4,3.2,true);                                     // Neo Tokyo boulevard
@@ -2576,8 +2684,8 @@
   let waveStuckTimer=0; // seconds since last kill when hostiles remain — triggers teleport
   let lastKillT=0;
   // Endless mode: per-island kill counters + island detection
-  const islandPolys=[null,null,null,null,null,null,null,null,null,null]; // filled after island polys defined (0-9)
-  const endlessKills=[0,0,0,0,0,0,0,0,0,0],endlessWaveN=[1,1,1,1,1,1,1,1,1,1];
+  const islandPolys=[null,null,null,null,null,null,null,null,null,null,null]; // filled after island polys defined (0-10)
+  const endlessKills=[0,0,0,0,0,0,0,0,0,0,0],endlessWaveN=[1,1,1,1,1,1,1,1,1,1,1];
   let endlessSpawnTimer=0;
 
   function addScore(n){state.score+=n;document.getElementById('scoreVal').textContent=state.score.toLocaleString();}
@@ -2610,10 +2718,10 @@
   // Spawns are spread across ALL islands/districts, not just a ring around the player.
   // Near islands only until wave 6; all 5 open after that so the world feels alive
   // fill endless island poly refs now that all island polys exist
-  [isl0,isl1,isl2,isl3,isl4,isl5,isl6,isl7,isl8,isl9].forEach((p,i)=>islandPolys[i]=p);
+  [isl0,isl1,isl2,isl3,isl4,isl5,isl6,isl7,isl8,isl9,isl10].forEach((p,i)=>islandPolys[i]=p);
   function currentIsland(){for(let i=0;i<islandPolys.length;i++)if(polyInside(camera.position.x,camera.position.z,islandPolys[i]))return i;return-1;}
 
-  const SPAWN_ISLANDS=[isl0,isl1,isl2,isl3,isl4,isl5,isl6,isl7,isl8,isl9].map(poly=>{let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;poly.forEach(p=>{x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);z0=Math.min(z0,p[1]);z1=Math.max(z1,p[1]);});return{poly,x0,x1,z0,z1};});
+  const SPAWN_ISLANDS=[isl0,isl1,isl2,isl3,isl4,isl5,isl6,isl7,isl8,isl9,isl10].map(poly=>{let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;poly.forEach(p=>{x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);z0=Math.min(z0,p[1]);z1=Math.max(z1,p[1]);});return{poly,x0,x1,z0,z1};});
   function randSpawnPoint(){
     // Always ≥70 % near the player so golems are visible and fights feel immediate.
     // Far-island spawns open up after wave 5 for world-scale variety.
@@ -2623,7 +2731,7 @@
         const ang=rand(0,Math.PI*2),dist=rand(18,48);
         const x=camera.position.x+Math.cos(ang)*dist,z=camera.position.z+Math.sin(ang)*dist;
         // one continuous city — any in-bounds point near the player is a valid spawn
-        if(x>-680&&x<880&&z>-320&&z<500&&!golemBlocked(x,z,1.3)&&Math.hypot(x-camera.position.x,z-camera.position.z)>12)return{x,z};
+        if(x>-680&&x<880&&z>-660&&z<500&&!golemBlocked(x,z,1.3)&&Math.hypot(x-camera.position.x,z-camera.position.z)>12)return{x,z};
         continue;
       }
       const pool=SPAWN_ISLANDS;
@@ -2741,9 +2849,11 @@
         if(dist<6){gmove(g,-ndx*u.speed*.5*dt,-ndz*u.speed*.5*dt,cr,def.fly);}
         if(def.fly)g.position.y+=(def.flyH-g.position.y)*Math.min(1,dt*2);
       }
+      // ground units ride the terrain (hills in the Fantasy Realm; 0 elsewhere)
+      if(!def.fly){const gy2=surfaceY(g.position.x,g.position.z,g.position.y+1.4);if(Math.abs(gy2-g.position.y)>.02)g.position.y+=(gy2-g.position.y)*Math.min(1,dt*7);}
       // keep within sane bounds
       g.position.x=TL.clamp(g.position.x,-680,880);
-      g.position.z=TL.clamp(g.position.z,-320,500);
+      g.position.z=TL.clamp(g.position.z,-660,500);
       // health bar
       if(u.isBoss){u.fill.scale.x=Math.max(.001,u.hp/u.maxHp);u.fill.position.x=-(1-u.fill.scale.x)*1.12;u.barG.lookAt(pp.x,u.barG.getWorldPosition(tmpV).y,pp.z);}
       // bob legs
@@ -2949,11 +3059,13 @@
     lockPointer();
     // BLACKOUT PROTOCOL level: deploy straight into Sector 7 with the full arsenal
     if(window._level==='blackout'){camera.position.set(-480,2.4,110);yaw=0;pitch=0;showBanner('BLACKOUT PROTOCOL','SECTOR 7 — URBAN COMBAT ZONE',3200);}
+    if(window._level==='fantasy'){camera.position.set(100,5.6,-424);yaw=0;pitch=0;showBanner('FANTASY REALM','MYSTIC HIGHLANDS — FLOATING STONES OF THE ANCIENTS',3200);}
     // Ammo crates — deferred here so EMOJI/dropPickup refs are fully initialized
     const _ammoPts=[[10,215],[135,305],[215,305],[220,305],[150,380], // pyramid island
       [155,15],[190,-18],[310,0],[360,-20],[170,-90],[20,20],        // other islands
       [-480,100],[-480,-40],[-400,-120],[-560,40],                   // sector 7
-      [-150,315],[-230,390]];                                        // mount cinder
+      [-150,315],[-230,390],                                        // mount cinder
+      [100,-460],[60,-560]];                                        // fantasy realm
     for(const[ax,az] of _ammoPts)dropPickup(ax,az,'ammo');
     if(state.endless){
       document.getElementById('waveVal').textContent='♾ ENDLESS';
@@ -2964,7 +3076,7 @@
     }
     // Apex golems guarding each island — placed at game start
     setTimeout(()=>{
-      const apexPosts=[[370,-20],[50,155],[175,310],[290,-190],[315,152],[-40,20],[180,-40],[-120,-200],[-480,-90],[-230,395]];
+      const apexPosts=[[370,-20],[50,155],[175,310],[290,-190],[315,152],[-40,20],[180,-40],[-120,-200],[-480,-90],[-230,395],[100,-560]];
       for(const[ax,az] of apexPosts){const ag=makeGolem(ax,az,'boss');if(ag)ag.userData.hostile=true;}
     },1800);
     // activate mode chosen on home screen
@@ -3062,7 +3174,7 @@
     // landmasses (clipped to the dish)
     mctx.save();mctx.beginPath();mctx.arc(cx,cy,R,0,7);mctx.clip();
     function poly(p,fill){mctx.beginPath();p.forEach((q,i)=>{const s=pt(q[0],q[1]);if(i===0)mctx.moveTo(s[0],s[1]);else mctx.lineTo(s[0],s[1]);});mctx.closePath();mctx.fillStyle=fill;mctx.fill();}
-    poly(isl0,'rgba(40,86,52,.55)');poly(isl1,'rgba(40,86,52,.55)');poly(isl2,'rgba(74,90,116,.55)');poly(isl3,'rgba(46,62,48,.55)');poly(isl4,'rgba(120,180,210,.5)');poly(isl5,'rgba(150,120,70,.5)');poly(isl6,'rgba(40,70,30,.55)');poly(isl7,'rgba(110,120,70,.55)');poly(isl8,'rgba(70,60,48,.6)');poly(isl9,'rgba(120,55,25,.6)');
+    poly(isl0,'rgba(40,86,52,.55)');poly(isl1,'rgba(40,86,52,.55)');poly(isl2,'rgba(74,90,116,.55)');poly(isl3,'rgba(46,62,48,.55)');poly(isl4,'rgba(120,180,210,.5)');poly(isl5,'rgba(150,120,70,.5)');poly(isl6,'rgba(40,70,30,.55)');poly(isl7,'rgba(110,120,70,.55)');poly(isl8,'rgba(70,60,48,.6)');poly(isl9,'rgba(120,55,25,.6)');poly(isl10,'rgba(60,110,55,.6)');
     // golem blips
     for(const g of golems){if(!g.userData.alive)continue;const s=pt(g.position.x,g.position.z);const dd=Math.hypot(s[0]-cx,s[1]-cy);if(dd>R)continue;mctx.fillStyle=g.userData.hostile?'#ff2d95':'#57ff87';const sz=g.userData.isBoss?5:2.6;mctx.beginPath();mctx.arc(s[0],s[1],sz,0,7);mctx.fill();if(g.userData.isBoss){mctx.strokeStyle='#ffe45c';mctx.lineWidth=1.5;mctx.beginPath();mctx.arc(s[0],s[1],sz+2.5,0,7);mctx.stroke();}}
     // sweep line
@@ -3119,6 +3231,8 @@
     [-480,1.5,-40],[-560,1.5,-120],[-400,1.5,40],[-560,1.5,40],[-400,1.5,-120],
     // isl9 (mount cinder)
     [-150,1.5,310],[-160,1.5,400],[-235,1.5,390],[-130,1.5,350],[-245,1.5,335],
+    // isl10 (fantasy realm — heights match the hills)
+    [40,1.8,-450],[160,6.1,-450],[100,3.7,-520],[40,1.7,-590],[160,5.6,-590],
   ];
   let starsCollected=0;
   const starMatG=neon(0xffe45c,3.2);
@@ -3166,7 +3280,7 @@
   function clearUfoAttack(){for(const u of assaultUFOs){scene.remove(u.mesh);}assaultUFOs.length=0;for(const p of ufoEProjs){scene.remove(p.mesh);}ufoEProjs.length=0;}
 
   function spawnUfoWave(){
-    ufoWave++;const spawnRing=[[0,1.5,0],[160,1.5,-30],[330,1.5,0],[10,1.5,150],[162,1.5,-168],[170,1.5,310],[315,1.5,155],[-120,1.5,-170],[-480,1.5,-40],[-193,1.5,353]];const count=Math.max(spawnRing.length*2,3+ufoWave*3);ufoRemaining=count;
+    ufoWave++;const spawnRing=[[0,1.5,0],[160,1.5,-30],[330,1.5,0],[10,1.5,150],[162,1.5,-168],[170,1.5,310],[315,1.5,155],[-120,1.5,-170],[-480,1.5,-40],[-193,1.5,353],[100,1.5,-520]];const count=Math.max(spawnRing.length*2,3+ufoWave*3);ufoRemaining=count;
     for(let i=0;i<count;i++){
       const base=spawnRing[i%spawnRing.length];
       const ug=new THREE.Group();ug.position.set(base[0]+rand(-30,30),rand(22,45),base[2]+rand(-30,30));scene.add(ug);
@@ -3243,7 +3357,7 @@
              if(!g.userData.alive||!g.userData.hostile||g.userData.isBoss)continue;
              const ang=rand(0,Math.PI*2),dd=rand(22,42);
              const nx=camera.position.x+Math.cos(ang)*dd,nz=camera.position.z+Math.sin(ang)*dd;
-             if(nx>-680&&nx<880&&nz>-320&&nz<500&&!golemBlocked(nx,nz,1.3)){
+             if(nx>-680&&nx<880&&nz>-660&&nz<500&&!golemBlocked(nx,nz,1.3)){
                g.position.x=nx;g.position.z=nz;spawnBurst(g.position.clone().setY(2),0x9b5cff);moved++;}
            }
            if(moved)showBanner('CONTACT','hostiles closing on your position',1200);
@@ -3290,7 +3404,7 @@
       scopeEl.style.opacity=zooming?'1':'0';
       // 2X damage boost timer
       if(state.dmgMultTimer>0){state.dmgMultTimer-=dt;if(state.dmgMultTimer<=0){state.dmgMult=1;}updateBoostHud();}
-      updateGolems(dt);updateProjs(dt);updateEProjs(dt);updateBursts(dt);updatePickups(dt);updateLightnings(dt);updateFlames(dt);updateTimeOfDay(dt);updateBlackoutAtmo(dt);updateCityTraffic(dt);updateCityPlanes(dt);updateColumns(dt);updateKong(dt);
+      updateGolems(dt);updateProjs(dt);updateEProjs(dt);updateBursts(dt);updatePickups(dt);updateLightnings(dt);updateFlames(dt);updateTimeOfDay(dt);updateBlackoutAtmo(dt);updateCityTraffic(dt);updateCityPlanes(dt);updateColumns(dt);updateKong(dt);updateRealm(dt);
       if(activeMode==='starSearch')updateStarSearch(dt);
       if(activeMode==='ufoAttack')updateUfoAttack(dt);
       // wave spawning
